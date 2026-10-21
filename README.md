@@ -236,3 +236,67 @@ python -m pytest --randomly-seed=123
 ```
 
 The coverage command measures application statement coverage and exits unsuccessfully if it is below 80% or a test fails. Different seeds exercise different test orders and help detect shared-state dependencies. These commands provide a way to validate the threshold and order independence; no measured coverage percentage is asserted here.
+
+## Terraform AWS networking
+
+The root at [`terraform/environments/dev`](terraform/environments/dev/README.md)
+uses the reusable [`network` module](terraform/modules/network/README.md) to
+create the VPC, two public and two private subnets, routing, and baseline
+security groups. The default `10.20.0.0/16` topology matches the assignment.
+NAT is optional and disabled by default; no EKS cluster or VPC endpoints are
+created. The module README documents the production NAT/endpoint decision.
+
+```sh
+terraform -chdir=terraform/environments/dev init -backend=false
+terraform -chdir=terraform/environments/dev validate
+terraform -chdir=terraform/environments/dev test
+terraform -chdir=terraform/modules/network init -backend=false
+terraform -chdir=terraform/modules/network validate
+terraform -chdir=terraform/modules/network test
+```
+
+Tests use mocked AWS providers and do not provision AWS resources. See the root
+README for actual planning commands, inputs, outputs, and credentials requirements.
+
+## Terraform ECR and publishing identities
+
+The dev root also uses the [`ecr` module](terraform/modules/ecr/README.md) for a
+KMS-encrypted ECR repository with immutable tags, scan-on-push, and lifecycle
+cleanup, plus separate GitHub publisher, EKS cluster, and EKS node roles. GitHub
+OIDC trust matches one repository and branch or protected environment exactly.
+See the [root configuration](terraform/environments/dev/README.md#ecr-and-iamoidc)
+for defaults, existing OIDC provider reuse, and immutable GitHub subject IDs to
+verify before deployment. No long-lived publishing credentials are required.
+
+## EKS definitions — not deployed
+
+The [`eks` module](terraform/modules/eks/README.md) defines a private Kubernetes
+1.35 cluster, explicit access entries, complete control-plane logging, and
+AL2023 managed workers (desired 2, min 1, max 3) in private subnets. Public-IP
+subnet settings are blocked by a tested precondition. The dev root defaults to
+`enable_eks=false`; no cluster or node group has been deployed. See the module
+README for private administrative access, network prerequisites, AMI strategy,
+and default/custom KMS encryption behavior.
+
+## Mocked Terraform acceptance tests
+
+See [Terraform testing](terraform/TESTING.md) for the six required configuration
+conditions, two explicit invalid-input cases, mock computed-attribute strategy,
+and commands to run the suites or just the requirement-specific tests. These
+checks use mocked AWS providers and do not deploy infrastructure.
+
+## Architecture decisions
+
+- [ADR 0001: Terraform state management](docs/adr/0001-terraform-state-management.md) — proposed AWS backend operation, locking, encryption, environment isolation, recovery, and secret handling. Documentation only; no backend deployed.
+
+Run every local Terraform check (formatting, backend-disabled initialization,
+validation, and mocked root/module tests) with:
+
+```sh
+./scripts/terraform-validate.sh
+```
+
+The script stops at the first failure with a nonzero exit code. Provider downloads
+may require internet access, but tests do not contact AWS. See
+[Terraform testing](terraform/TESTING.md#one-command-validation) for how this differs
+from a real AWS plan.
