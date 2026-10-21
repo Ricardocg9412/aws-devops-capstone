@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: inventory-api-service
+  namespace: devops-lab
+spec:
+  selector:
+    app: inventory-api
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080
