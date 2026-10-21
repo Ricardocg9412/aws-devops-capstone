@@ -257,3 +257,13 @@ terraform -chdir=terraform/modules/network test
 
 Tests use mocked AWS providers and do not provision AWS resources. See the root
 README for actual planning commands, inputs, outputs, and credentials requirements.
+
+## Terraform ECR and publishing identities
+
+The dev root also uses the [`ecr` module](terraform/modules/ecr/README.md) for a
+KMS-encrypted ECR repository with immutable tags, scan-on-push, and lifecycle
+cleanup, plus separate GitHub publisher, EKS cluster, and EKS node roles. GitHub
+OIDC trust matches one repository and branch or protected environment exactly.
+See the [root configuration](terraform/environments/dev/README.md#ecr-and-iamoidc)
+for defaults, existing OIDC provider reuse, and immutable GitHub subject IDs to
+verify before deployment. No long-lived publishing credentials are required.

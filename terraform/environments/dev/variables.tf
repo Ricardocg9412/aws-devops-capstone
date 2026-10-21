@@ -84,3 +84,29 @@ variable "common_tags" {
     error_message = "common_tags must contain non-empty Project, Environment, ManagedBy, and Owner values."
   }
 }
+
+variable "github_repository" {
+  description = "Exact GitHub OWNER/REPOSITORY allowed to publish images."
+  type        = string
+  default     = "Ricardocg9412/aws-devops-capstone"
+}
+variable "github_branch" {
+  description = "Exact publishing branch when no GitHub environment is configured."
+  type        = string
+  default     = "main"
+}
+variable "github_environment" {
+  description = "Optional protected GitHub environment instead of branch-based trust."
+  type        = string
+  default     = null
+}
+variable "github_subject_repository" {
+  description = "Optional immutable OIDC subject repository identity OWNER@ID/REPO@ID."
+  type        = string
+  default     = null
+}
+variable "github_oidc_provider_arn" {
+  description = "Existing GitHub OIDC provider ARN; null creates one."
+  type        = string
+  default     = null
+}

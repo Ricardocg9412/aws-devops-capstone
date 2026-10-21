@@ -104,3 +104,50 @@ Apply a reviewed plan only when ready to provision real AWS infrastructure.
 Keep `terraform/environments/dev/.terraform.lock.hcl` under version control;
 `.terraform/`, state, and saved `.tfplan` files are ignored. Production should use
 its own root/state when implemented, not share dev state by changing a variable.
+
+## ECR and IAM/OIDC
+
+This root also calls [`../../modules/ecr`](../../modules/ecr/README.md), using
+the existing ECR module template. It creates `inventory-api-dev-ecr` by default,
+with KMS encryption, basic scan-on-push, immutable tags, cleanup of untagged
+images older than seven days, and retention of the newest 30 SHA-tagged images.
+The module README explains lifecycle interaction with release/rollback images.
+
+| Additional root input | Default |
+| --- | --- |
+| `github_repository` | `Ricardocg9412/aws-devops-capstone` (from this project's remote) |
+| `github_branch` | `main` (publishing branch; independent of the local working branch) |
+| `github_environment` | `null`; set for protected environment trust instead of branch trust |
+| `github_subject_repository` | `null`; set OWNER@OWNER_ID/REPO@REPO_ID for immutable OIDC subjects |
+| `github_oidc_provider_arn` | `null`; creates provider, or pass the account's existing provider ARN |
+
+Before applying, verify the actual GitHub repository subject format. Newer
+repositories can use immutable IDs: obtain the owner/repository IDs from GitHub
+and set `github_subject_repository` accordingly. The default uses the legacy
+name-only subject and fails closed when GitHub supplies a different format.
+Do not remove the subject condition to bypass a failed authentication.
+
+Existing-provider and environment configuration can be passed through a reviewed
+variable file. Protect GitHub environment deployment branches/reviewers; IAM's
+environment subject alone cannot restrict branches. Reuse the account-level
+OIDC provider across dev/prod states instead of trying to create it twice.
+The current defaults authorize publishing from `main`, not `feature/day2-terraform`.
+
+New root outputs: `repository_name`, `repository_arn`, `repository_url`,
+`github_actions_role_arn`, `github_oidc_provider_arn`, `github_oidc_subject`,
+`eks_cluster_role_arn`, and `eks_node_role_arn`. Policy dependencies are preserved
+for downstream consumers. The publisher can push only to this repository; it
+has no Kubernetes deployment or IAM administration permissions. EKS cluster
+and node roles are prepared for a later EKS module; CNI/workload identities and
+Kubernetes access still require configuration.
+
+```sh
+terraform -chdir=terraform/environments/dev init -backend=false
+terraform -chdir=terraform/environments/dev validate
+terraform -chdir=terraform/environments/dev test
+terraform -chdir=terraform/modules/ecr init -backend=false
+terraform -chdir=terraform/modules/ecr validate
+terraform -chdir=terraform/modules/ecr test
+```
+
+No AWS deployment or image publication is performed by these mocked tests.

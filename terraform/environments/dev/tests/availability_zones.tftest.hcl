@@ -1,4 +1,11 @@
-mock_provider "aws" {}
+mock_provider "aws" {
+  mock_data "aws_partition" {
+    defaults = {
+      partition  = "aws"
+      dns_suffix = "amazonaws.com"
+    }
+  }
+}
 run "reject_wrong_region" {
   command = plan
   variables {

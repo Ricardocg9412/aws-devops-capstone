@@ -48,3 +48,42 @@ output "workload_security_group_id" {
   value       = module.network.workload_security_group_id
 }
 
+output "repository_name" {
+  description = "ECR repository name."
+  value       = module.ecr.repository_name
+}
+
+output "repository_arn" {
+  description = "ECR repository ARN."
+  value       = module.ecr.repository_arn
+}
+
+output "repository_url" {
+  description = "ECR image publishing URL."
+  value       = module.ecr.repository_url
+}
+
+output "github_actions_role_arn" {
+  description = "GitHub publishing role ARN for the workflow."
+  value       = module.ecr.github_actions_role_arn
+}
+
+output "github_oidc_provider_arn" {
+  description = "Created or reused GitHub OIDC provider ARN."
+  value       = module.ecr.github_oidc_provider_arn
+}
+
+output "github_oidc_subject" {
+  description = "Exact trusted GitHub OIDC subject."
+  value       = module.ecr.github_oidc_subject
+}
+
+output "eks_cluster_role_arn" {
+  description = "EKS control-plane role ARN, ready after its policy attachment."
+  value       = module.ecr.eks_cluster_role_arn
+}
+
+output "eks_node_role_arn" {
+  description = "EKS managed-node role ARN, ready after its policy attachments."
+  value       = module.ecr.eks_node_role_arn
+}
