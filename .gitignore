@@ -3,3 +3,11 @@ __pycache__/
 .pytest_cache/
 *.py[cod]
 .env
+
+# Terraform local cache, state, and saved plans (keep .terraform.lock.hcl tracked)
+**/.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.tfstate.lock.info
+*.tfplan
+crash.log

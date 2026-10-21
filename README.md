@@ -236,3 +236,24 @@ python -m pytest --randomly-seed=123
 ```
 
 The coverage command measures application statement coverage and exits unsuccessfully if it is below 80% or a test fails. Different seeds exercise different test orders and help detect shared-state dependencies. These commands provide a way to validate the threshold and order independence; no measured coverage percentage is asserted here.
+
+## Terraform AWS networking
+
+The root at [`terraform/environments/dev`](terraform/environments/dev/README.md)
+uses the reusable [`network` module](terraform/modules/network/README.md) to
+create the VPC, two public and two private subnets, routing, and baseline
+security groups. The default `10.20.0.0/16` topology matches the assignment.
+NAT is optional and disabled by default; no EKS cluster or VPC endpoints are
+created. The module README documents the production NAT/endpoint decision.
+
+```sh
+terraform -chdir=terraform/environments/dev init -backend=false
+terraform -chdir=terraform/environments/dev validate
+terraform -chdir=terraform/environments/dev test
+terraform -chdir=terraform/modules/network init -backend=false
+terraform -chdir=terraform/modules/network validate
+terraform -chdir=terraform/modules/network test
+```
+
+Tests use mocked AWS providers and do not provision AWS resources. See the root
+README for actual planning commands, inputs, outputs, and credentials requirements.
