@@ -87,3 +87,23 @@ output "eks_node_role_arn" {
   description = "EKS managed-node role ARN, ready after its policy attachments."
   value       = module.ecr.eks_node_role_arn
 }
+
+output "eks_cluster_name" {
+  description = "EKS cluster name; null when disabled."
+  value       = try(module.eks[0].cluster_name, null)
+}
+
+output "eks_cluster_endpoint" {
+  description = "EKS cluster endpoint; null when disabled."
+  value       = try(module.eks[0].cluster_endpoint, null)
+}
+
+output "eks_node_group_name" {
+  description = "EKS node group name; null when disabled."
+  value       = try(module.eks[0].node_group_name, null)
+}
+
+output "eks_control_plane_log_group_name" {
+  description = "EKS control plane log group name; null when disabled."
+  value       = try(module.eks[0].control_plane_log_group_name, null)
+}

@@ -53,12 +53,12 @@ policy supports EKS add-on image pulls as well as application images, so it is
 not restricted to this application's repository. The cluster role is not reused
 as a node or CI role.
 
-This prepares roles for a future standard EKS cluster and managed node group;
-it does not create either, Kubernetes RBAC/access entries, Pod Identity/IRSA
-roles, or a self-managed EC2 instance profile. Configure VPC CNI permissions on
-a dedicated service-account/Pod Identity role before operating EKS, rather than
-adding broad CNI permissions to every node. Workload AWS permissions also belong
-on separate roles. This is not an EKS Auto Mode IAM configuration.
+The optional EKS module consumes these roles for a standard cluster and managed
+node group. This ECR module itself does not create EKS, access entries, Pod
+Identity/IRSA roles, or a self-managed EC2 instance profile. The EKS module
+defines dedicated VPC CNI IRSA permissions rather than adding them to every
+node. Application AWS permissions still belong on separate workload roles.
+This is not an EKS Auto Mode IAM configuration.
 
 ## OIDC trust
 

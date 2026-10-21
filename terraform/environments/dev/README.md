@@ -138,8 +138,8 @@ New root outputs: `repository_name`, `repository_arn`, `repository_url`,
 `eks_cluster_role_arn`, and `eks_node_role_arn`. Policy dependencies are preserved
 for downstream consumers. The publisher can push only to this repository; it
 has no Kubernetes deployment or IAM administration permissions. EKS cluster
-and node roles are prepared for a later EKS module; CNI/workload identities and
-Kubernetes access still require configuration.
+and node roles feed the optional EKS module, which defines CNI IRSA and explicit
+access entries. Application workload identities still require configuration.
 
 ```sh
 terraform -chdir=terraform/environments/dev init -backend=false
@@ -151,3 +151,45 @@ terraform -chdir=terraform/modules/ecr test
 ```
 
 No AWS deployment or image publication is performed by these mocked tests.
+
+## EKS definitions (disabled; not deployed)
+
+The reusable [`eks` module](../../modules/eks/README.md) defines a private-only
+`inventory-api-dev-eks` cluster and an AL2023 x86-64 managed node group in the
+two private subnets. Defaults: Kubernetes 1.35, desired 2/minimum 1/maximum 3,
+API access-entry authentication with no creator admin, all control-plane logs,
+and encrypted worker volumes. Role inputs use the existing ECR/IAM module's
+outputs with IAM policy dependencies preserved. A dedicated CNI IRSA role and
+managed VPC CNI add-on keep networking permissions off the general node role.
+
+| Additional root input | Default |
+| --- | --- |
+| `enable_eks` | `false`; keeps EKS out of the default lab plan |
+| `eks_cluster_version` | `1.35` |
+| `eks_admin_role_arns` | `[]`; at least one designated IAM admin role required when enabled |
+| `eks_admin_access_cidrs` | `[]`; configure source networks and private connectivity before use |
+| `eks_node_ami_release_version` | `null`; optional EKS release pin, not an AMI ID |
+| `eks_secrets_kms_key_arn` | `null`; uses EKS default AWS-owned envelope encryption |
+
+Outputs `eks_cluster_name`, `eks_cluster_endpoint`, `eks_node_group_name`, and
+`eks_control_plane_log_group_name` are null when EKS is disabled. Worker subnets
+are inspected: a blocking node-group precondition rejects public-IP assignment
+or another VPC. The launch template independently disables public IPs.
+
+No deployment is authorized or performed by these definitions. A future approved
+provisioning step must first supply designated admin roles, VPN/SSM/private DNS
+and API ingress, and NAT/endpoints for private worker bootstrap and image pulls.
+The current NAT-off/no-endpoint lab network alone cannot support node bootstrap.
+The module README explains supported versions, administrative access, secrets
+KMS tradeoffs, and AMI/add-on update responsibilities.
+
+```sh
+terraform -chdir=terraform/environments/dev init -backend=false
+terraform -chdir=terraform/environments/dev validate
+terraform -chdir=terraform/environments/dev test
+terraform -chdir=terraform/modules/eks init -backend=false
+terraform -chdir=terraform/modules/eks validate
+terraform -chdir=terraform/modules/eks test
+```
+
+All Terraform tests use mocked AWS providers and do not deploy resources.

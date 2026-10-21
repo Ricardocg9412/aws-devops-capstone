@@ -110,3 +110,39 @@ variable "github_oidc_provider_arn" {
   type        = string
   default     = null
 }
+
+variable "enable_eks" {
+  description = "Include EKS definitions in a plan. False keeps the local lab EKS-free; no deployment is performed by tests."
+  type        = bool
+  default     = false
+  nullable    = false
+}
+variable "eks_cluster_version" {
+  description = "Reviewed supported EKS version; default 1.35."
+  type        = string
+  default     = "1.35"
+}
+variable "eks_admin_role_arns" {
+  description = "Explicit permanent IAM roles for EKS access entries; required when EKS is enabled."
+  type        = set(string)
+  default     = []
+  validation {
+    condition     = !var.enable_eks || length(var.eks_admin_role_arns) > 0
+    error_message = "Set eks_admin_role_arns before enabling EKS; implicit creator administrator access is disabled."
+  }
+}
+variable "eks_admin_access_cidrs" {
+  description = "Approved CIDRs for private API access over VPN/SSM/private routing."
+  type        = set(string)
+  default     = []
+}
+variable "eks_node_ami_release_version" {
+  description = "Optional EKS AL2023 release pin matching the configured cluster version."
+  type        = string
+  default     = null
+}
+variable "eks_secrets_kms_key_arn" {
+  description = "Optional customer-managed key; default null uses EKS AWS-owned envelope encryption."
+  type        = string
+  default     = null
+}

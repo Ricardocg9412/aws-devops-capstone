@@ -267,3 +267,36 @@ OIDC trust matches one repository and branch or protected environment exactly.
 See the [root configuration](terraform/environments/dev/README.md#ecr-and-iamoidc)
 for defaults, existing OIDC provider reuse, and immutable GitHub subject IDs to
 verify before deployment. No long-lived publishing credentials are required.
+
+## EKS definitions — not deployed
+
+The [`eks` module](terraform/modules/eks/README.md) defines a private Kubernetes
+1.35 cluster, explicit access entries, complete control-plane logging, and
+AL2023 managed workers (desired 2, min 1, max 3) in private subnets. Public-IP
+subnet settings are blocked by a tested precondition. The dev root defaults to
+`enable_eks=false`; no cluster or node group has been deployed. See the module
+README for private administrative access, network prerequisites, AMI strategy,
+and default/custom KMS encryption behavior.
+
+## Mocked Terraform acceptance tests
+
+See [Terraform testing](terraform/TESTING.md) for the six required configuration
+conditions, two explicit invalid-input cases, mock computed-attribute strategy,
+and commands to run the suites or just the requirement-specific tests. These
+checks use mocked AWS providers and do not deploy infrastructure.
+
+## Architecture decisions
+
+- [ADR 0001: Terraform state management](docs/adr/0001-terraform-state-management.md) — proposed AWS backend operation, locking, encryption, environment isolation, recovery, and secret handling. Documentation only; no backend deployed.
+
+Run every local Terraform check (formatting, backend-disabled initialization,
+validation, and mocked root/module tests) with:
+
+```sh
+./scripts/terraform-validate.sh
+```
+
+The script stops at the first failure with a nonzero exit code. Provider downloads
+may require internet access, but tests do not contact AWS. See
+[Terraform testing](terraform/TESTING.md#one-command-validation) for how this differs
+from a real AWS plan.
