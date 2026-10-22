@@ -147,6 +147,28 @@ kubectl delete -f k8s/service.yaml -f k8s/deployment.yaml
 
 This leaves the namespace intact. Container restarts, Pod replacement, and rolling updates lose the affected process's inventory.
 
+## Reusable Helm chart
+
+[`helm/inventory-api`](helm/inventory-api/README.md) packages the application as a
+Deployment, Service, dedicated ServiceAccount with token automount disabled, and
+ConfigMap. Defaults match the lab requirements: image `inventory-api:1.0`, two
+replicas, container port 8080, Service port 80, health/readiness probes, and
+100m/128Mi requests with 500m/256Mi limits. These are lab resource settings.
+Separate dev/prod values, optional HPA, existing Secret references, and rolling
+updates are documented in the chart README. Multiple replicas still have
+independent in-memory inventories.
+
+```sh
+helm lint helm/inventory-api --strict
+helm template inventory-api-dev helm/inventory-api --namespace devops-lab \
+  -f helm/inventory-api/values-dev.yaml
+python3 -m unittest discover -s helm/inventory-api/tests -v
+```
+
+Chart creation and tests do not install anything into Kubernetes. See the chart
+README for installation and migration guidance; existing `k8s/` manifests remain
+available and are managed independently.
+
 ## Endpoints
 
 | Method | Path | Behavior |

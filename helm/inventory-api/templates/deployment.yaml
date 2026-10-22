@@ -1,0 +1,67 @@
+{{- include "inventory-api.validate" . -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "inventory-api.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "inventory-api.labels" . | nindent 4 }}
+  {{- with mergeOverwrite (deepCopy .Values.commonAnnotations) .Values.deploymentAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  minReadySeconds: {{ .Values.minReadySeconds }}
+  strategy:
+    {{- toYaml .Values.strategy | nindent 4 }}
+  selector:
+    matchLabels:
+      {{- include "inventory-api.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "inventory-api.podLabels" . | nindent 8 }}
+      annotations:
+        {{- $checksum := include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- mergeOverwrite (deepCopy .Values.podAnnotations) (dict "checksum/config" $checksum) | toYaml | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "inventory-api.serviceAccountName" . }}
+      automountServiceAccountToken: {{ .Values.serviceAccount.automount }}
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ include "inventory-api.name" . }}
+          image: {{ printf "%s:%s" .Values.image.repository .Values.image.tag | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.containerPort }}
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: {{ include "inventory-api.configMapName" . }}
+            {{- if .Values.existingSecret }}
+            - secretRef:
+                name: {{ .Values.existingSecret }}
+            {{- end }}
+          env:
+            - name: UVICORN_HOST
+              value: "0.0.0.0"
+            - name: UVICORN_PORT
+              value: {{ .Values.containerPort | quote }}
+          readinessProbe:
+            {{- toYaml .Values.readinessProbe | nindent 12 }}
+          livenessProbe:
+            {{- toYaml .Values.livenessProbe | nindent 12 }}
+          {{- with .Values.startupProbe }}
+          startupProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}

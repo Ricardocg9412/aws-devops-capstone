@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "inventory-api.configMapName" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "inventory-api.labels" . | nindent 4 }}
+  {{- with .Values.commonAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+data:
+  {{- toYaml .Values.config | nindent 2 }}

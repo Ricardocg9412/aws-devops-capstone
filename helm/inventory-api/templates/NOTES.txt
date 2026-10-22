@@ -1,0 +1,9 @@
+Release {{ .Release.Name }} in namespace {{ .Release.Namespace }}.
+
+Forward the Service locally:
+  kubectl -n {{ .Release.Namespace }} port-forward service/{{ include "inventory-api.fullname" . }} 8080:{{ .Values.service.port }}
+
+Then open http://127.0.0.1:8080/docs or request /health and /ready.
+
+Inventory is process-local. Multiple replicas and rolling updates do not share
+or preserve inventory state. Review README.md before using this beyond the lab.
