@@ -1,0 +1,19 @@
+# Intentionally violates all six policies. Use a server dry-run first.
+# This reserved .example registry does not contain a real runnable test image.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: kyverno-noncompliant-pod
+  namespace: devops-lab
+spec:
+  restartPolicy: Never
+  securityContext:
+    runAsNonRoot: false
+    runAsUser: 0
+  containers:
+    - name: noncompliant
+      image: unapproved.example/inventory-api:latest
+      securityContext:
+        privileged: true
+        readOnlyRootFilesystem: false
+      # CPU and memory limits intentionally absent.

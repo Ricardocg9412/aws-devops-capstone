@@ -1,0 +1,84 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: valid-deployment
+  namespace: devops-lab
+spec:
+  selector:
+    matchLabels:
+      app: valid-deployment
+  template:
+    metadata:
+      labels:
+        app: valid-deployment
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+      containers:
+      - name: app
+        image: inventory-api:1.0
+        securityContext:
+          privileged: false
+          readOnlyRootFilesystem: true
+        resources:
+          limits:
+            cpu: 500m
+            memory: 256Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: writable-deployment
+  namespace: devops-lab
+spec:
+  selector:
+    matchLabels:
+      app: writable-deployment
+  template:
+    metadata:
+      labels:
+        app: writable-deployment
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+      containers:
+      - name: app
+        image: inventory-api:1.0
+        securityContext:
+          privileged: false
+          readOnlyRootFilesystem: false
+        resources:
+          limits:
+            cpu: 500m
+            memory: 256Mi
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: latest-cronjob
+  namespace: devops-lab
+spec:
+  schedule: 0 * * * *
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: latest-cronjob
+        spec:
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+          containers:
+          - name: app
+            image: inventory-api:latest
+            securityContext:
+              privileged: false
+              readOnlyRootFilesystem: true
+            resources:
+              limits:
+                cpu: 500m
+                memory: 256Mi
+          restartPolicy: Never

@@ -1,0 +1,68 @@
+apiVersion: policies.kyverno.io/v1
+kind: NamespacedValidatingPolicy
+metadata:
+  name: disallow-latest-image-tag
+  namespace: devops-lab
+  annotations:
+    policies.kyverno.io/title: Disallow Latest Image Tag
+    policies.kyverno.io/category: Inventory API Runtime Security
+spec:
+  validationActions:
+  - Deny
+  failurePolicy: Fail
+  evaluation:
+    admission:
+      enabled: true
+    background:
+      enabled: false
+  matchConstraints:
+    resourceRules:
+    - apiGroups:
+      - ''
+      apiVersions:
+      - v1
+      operations:
+      - CREATE
+      - UPDATE
+      resources:
+      - pods
+      - pods/ephemeralcontainers
+      - replicationcontrollers
+    - apiGroups:
+      - apps
+      apiVersions:
+      - v1
+      operations:
+      - CREATE
+      - UPDATE
+      resources:
+      - deployments
+      - statefulsets
+      - daemonsets
+      - replicasets
+    - apiGroups:
+      - batch
+      apiVersions:
+      - v1
+      operations:
+      - CREATE
+      - UPDATE
+      resources:
+      - jobs
+      - cronjobs
+  variables:
+  - name: podSpec
+    expression: |-
+      request.kind.kind == 'Pod' ? object.spec : (request.kind.kind == 'CronJob' ? object.spec.jobTemplate.spec.template.spec : object.spec.template.spec)
+  - name: containers
+    expression: |-
+      variables.podSpec.containers + (has(variables.podSpec.initContainers) ? variables.podSpec.initContainers : []) + (has(variables.podSpec.ephemeralContainers) ? variables.podSpec.ephemeralContainers : [])
+  validations:
+  - expression: |-
+      variables.containers.all(c,
+        c.image.matches('^[^@]+:[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}(@sha256:[a-f0-9]{64})?$')
+        && !c.image.matches('^[^@]+:latest(@sha256:[a-f0-9]{64})?$'))
+    message: Use an explicit non-latest tag, optionally with a digest; missing tags and :latest are forbidden.
+  matchConditions:
+  - name: application-namespace-only
+    expression: request.namespace == 'devops-lab'

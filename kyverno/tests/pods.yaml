@@ -1,0 +1,856 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: valid
+  namespace: devops-lab
+spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+  containers:
+  - name: app
+    image: inventory-api:1.0
+    securityContext:
+      privileged: false
+      readOnlyRootFilesystem: true
+    resources:
+      limits:
+        cpu: 500m
+        memory: 256Mi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: valid-canonical-image
+  namespace: devops-lab
+spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+  containers:
+  - name: app
+    image: docker.io/library/inventory-api:1.0
+    securityContext:
+      privileged: false
+      readOnlyRootFilesystem: true
+    resources:
+      limits:
+        cpu: 500m
+        memory: 256Mi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: valid-index-alias
+  namespace: devops-lab
+spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+  containers:
+  - name: app
+    image: index.docker.io/library/inventory-api:1.0
+    securityContext:
+      privileged: false
+      readOnlyRootFilesystem: true
+    resources:
+      limits:
+        cpu: 500m
+        memory: 256Mi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: valid-tag-and-digest
+  namespace: devops-lab
+spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+  containers:
+  - name: app
+    image: inventory-api:sha-123@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+    securityContext:
+      privileged: false
+      readOnlyRootFilesystem: true
+    resources:
+      limits:
+        cpu: 500m
+        memory: 256Mi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: root-uid
+  namespace: devops-lab
+spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+  containers:
+  - name: app
+    image: inventory-api:1.0
+    securityContext:
+      privileged: false
+      readOnlyRootFilesystem: true
+      runAsUser: 0
+    resources:
+      limits:
+        cpu: 500m
+        memory: 256Mi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: explicit-nonroot-false
+  namespace: devops-lab
+spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+  containers:
+  - name: app
+    image: inventory-api:1.0
+    securityContext:
+      privileged: false
+      readOnlyRootFilesystem: true
+      runAsNonRoot: false
+    resources:
+      limits:
+        cpu: 500m
+        memory: 256Mi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: missing-nonroot
+  namespace: devops-lab
+spec:
+  containers:
+  - name: app
+    image: inventory-api:1.0
+    securityContext:
+      privileged: false
+      readOnlyRootFilesystem: true
+    resources:
+      limits:
+        cpu: 500m
+        memory: 256Mi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: missing-cpu-limit
+  namespace: devops-lab
+spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+  containers:
+  - name: app
+    image: inventory-api:1.0
+    securityContext:
+      privileged: false
+      readOnlyRootFilesystem: true
+    resources:
+      limits:
+        memory: 256Mi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: missing-memory-limit
+  namespace: devops-lab
+spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+  containers:
+  - name: app
+    image: inventory-api:1.0
+    securityContext:
+      privileged: false
+      readOnlyRootFilesystem: true
+    resources:
+      limits:
+        cpu: 500m
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: privileged
+  namespace: devops-lab
+spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+  containers:
+  - name: app
+    image: inventory-api:1.0
+    securityContext:
+      privileged: true
+      readOnlyRootFilesystem: true
+    resources:
+      limits:
+        cpu: 500m
+        memory: 256Mi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: writable-root
+  namespace: devops-lab
+spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+  containers:
+  - name: app
+    image: inventory-api:1.0
+    securityContext:
+      privileged: false
+      readOnlyRootFilesystem: false
+    resources:
+      limits:
+        cpu: 500m
+        memory: 256Mi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: missing-readonly
+  namespace: devops-lab
+spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+  containers:
+  - name: app
+    image: inventory-api:1.0
+    securityContext:
+      privileged: false
+    resources:
+      limits:
+        cpu: 500m
+        memory: 256Mi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: latest-image
+  namespace: devops-lab
+spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+  containers:
+  - name: app
+    image: inventory-api:latest
+    securityContext:
+      privileged: false
+      readOnlyRootFilesystem: true
+    resources:
+      limits:
+        cpu: 500m
+        memory: 256Mi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: untagged-image
+  namespace: devops-lab
+spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+  containers:
+  - name: app
+    image: inventory-api
+    securityContext:
+      privileged: false
+      readOnlyRootFilesystem: true
+    resources:
+      limits:
+        cpu: 500m
+        memory: 256Mi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: unapproved-registry
+  namespace: devops-lab
+spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+  containers:
+  - name: app
+    image: evil.example/inventory-api:1.0
+    securityContext:
+      privileged: false
+      readOnlyRootFilesystem: true
+    resources:
+      limits:
+        cpu: 500m
+        memory: 256Mi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: unapproved-hub-repository
+  namespace: devops-lab
+spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+  containers:
+  - name: app
+    image: docker.io/library/nginx:1.27
+    securityContext:
+      privileged: false
+      readOnlyRootFilesystem: true
+    resources:
+      limits:
+        cpu: 500m
+        memory: 256Mi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: lookalike-repository
+  namespace: devops-lab
+spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+  containers:
+  - name: app
+    image: inventory-api-evil:1.0
+    securityContext:
+      privileged: false
+      readOnlyRootFilesystem: true
+    resources:
+      limits:
+        cpu: 500m
+        memory: 256Mi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: registry-port-without-tag
+  namespace: devops-lab
+spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+  containers:
+  - name: app
+    image: localhost:5000/inventory-api
+    securityContext:
+      privileged: false
+      readOnlyRootFilesystem: true
+    resources:
+      limits:
+        cpu: 500m
+        memory: 256Mi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: digest-without-tag
+  namespace: devops-lab
+spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+  containers:
+  - name: app
+    image: inventory-api@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+    securityContext:
+      privileged: false
+      readOnlyRootFilesystem: true
+    resources:
+      limits:
+        cpu: 500m
+        memory: 256Mi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: valid-init
+  namespace: devops-lab
+spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+  containers:
+  - name: app
+    image: inventory-api:1.0
+    securityContext:
+      privileged: false
+      readOnlyRootFilesystem: true
+    resources:
+      limits:
+        cpu: 500m
+        memory: 256Mi
+  initContainers:
+  - name: helper
+    image: inventory-api:1.0
+    securityContext:
+      privileged: false
+      readOnlyRootFilesystem: true
+    resources:
+      limits:
+        cpu: 500m
+        memory: 256Mi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: init-root
+  namespace: devops-lab
+spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+  containers:
+  - name: app
+    image: inventory-api:1.0
+    securityContext:
+      privileged: false
+      readOnlyRootFilesystem: true
+    resources:
+      limits:
+        cpu: 500m
+        memory: 256Mi
+  initContainers:
+  - name: helper
+    image: inventory-api:1.0
+    securityContext:
+      privileged: false
+      readOnlyRootFilesystem: true
+      runAsUser: 0
+    resources:
+      limits:
+        cpu: 500m
+        memory: 256Mi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: init-privileged
+  namespace: devops-lab
+spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+  containers:
+  - name: app
+    image: inventory-api:1.0
+    securityContext:
+      privileged: false
+      readOnlyRootFilesystem: true
+    resources:
+      limits:
+        cpu: 500m
+        memory: 256Mi
+  initContainers:
+  - name: helper
+    image: inventory-api:1.0
+    securityContext:
+      privileged: true
+      readOnlyRootFilesystem: true
+    resources:
+      limits:
+        cpu: 500m
+        memory: 256Mi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: init-writable
+  namespace: devops-lab
+spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+  containers:
+  - name: app
+    image: inventory-api:1.0
+    securityContext:
+      privileged: false
+      readOnlyRootFilesystem: true
+    resources:
+      limits:
+        cpu: 500m
+        memory: 256Mi
+  initContainers:
+  - name: helper
+    image: inventory-api:1.0
+    securityContext:
+      privileged: false
+      readOnlyRootFilesystem: false
+    resources:
+      limits:
+        cpu: 500m
+        memory: 256Mi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: init-latest
+  namespace: devops-lab
+spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+  containers:
+  - name: app
+    image: inventory-api:1.0
+    securityContext:
+      privileged: false
+      readOnlyRootFilesystem: true
+    resources:
+      limits:
+        cpu: 500m
+        memory: 256Mi
+  initContainers:
+  - name: helper
+    image: inventory-api:latest
+    securityContext:
+      privileged: false
+      readOnlyRootFilesystem: true
+    resources:
+      limits:
+        cpu: 500m
+        memory: 256Mi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: init-registry
+  namespace: devops-lab
+spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+  containers:
+  - name: app
+    image: inventory-api:1.0
+    securityContext:
+      privileged: false
+      readOnlyRootFilesystem: true
+    resources:
+      limits:
+        cpu: 500m
+        memory: 256Mi
+  initContainers:
+  - name: helper
+    image: evil.example/helper:1.0
+    securityContext:
+      privileged: false
+      readOnlyRootFilesystem: true
+    resources:
+      limits:
+        cpu: 500m
+        memory: 256Mi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: init-missing-limits
+  namespace: devops-lab
+spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+  containers:
+  - name: app
+    image: inventory-api:1.0
+    securityContext:
+      privileged: false
+      readOnlyRootFilesystem: true
+    resources:
+      limits:
+        cpu: 500m
+        memory: 256Mi
+  initContainers:
+  - name: helper
+    image: inventory-api:1.0
+    securityContext:
+      privileged: false
+      readOnlyRootFilesystem: true
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: valid-ephemeral
+  namespace: devops-lab
+spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+  containers:
+  - name: app
+    image: inventory-api:1.0
+    securityContext:
+      privileged: false
+      readOnlyRootFilesystem: true
+    resources:
+      limits:
+        cpu: 500m
+        memory: 256Mi
+  ephemeralContainers:
+  - name: helper
+    image: inventory-api:1.0
+    securityContext:
+      privileged: false
+      readOnlyRootFilesystem: true
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: ephemeral-root
+  namespace: devops-lab
+spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+  containers:
+  - name: app
+    image: inventory-api:1.0
+    securityContext:
+      privileged: false
+      readOnlyRootFilesystem: true
+    resources:
+      limits:
+        cpu: 500m
+        memory: 256Mi
+  ephemeralContainers:
+  - name: helper
+    image: inventory-api:1.0
+    securityContext:
+      privileged: false
+      readOnlyRootFilesystem: true
+      runAsUser: 0
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: ephemeral-privileged
+  namespace: devops-lab
+spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+  containers:
+  - name: app
+    image: inventory-api:1.0
+    securityContext:
+      privileged: false
+      readOnlyRootFilesystem: true
+    resources:
+      limits:
+        cpu: 500m
+        memory: 256Mi
+  ephemeralContainers:
+  - name: helper
+    image: inventory-api:1.0
+    securityContext:
+      privileged: true
+      readOnlyRootFilesystem: true
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: ephemeral-writable
+  namespace: devops-lab
+spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+  containers:
+  - name: app
+    image: inventory-api:1.0
+    securityContext:
+      privileged: false
+      readOnlyRootFilesystem: true
+    resources:
+      limits:
+        cpu: 500m
+        memory: 256Mi
+  ephemeralContainers:
+  - name: helper
+    image: inventory-api:1.0
+    securityContext:
+      privileged: false
+      readOnlyRootFilesystem: false
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: ephemeral-latest
+  namespace: devops-lab
+spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+  containers:
+  - name: app
+    image: inventory-api:1.0
+    securityContext:
+      privileged: false
+      readOnlyRootFilesystem: true
+    resources:
+      limits:
+        cpu: 500m
+        memory: 256Mi
+  ephemeralContainers:
+  - name: helper
+    image: inventory-api:latest
+    securityContext:
+      privileged: false
+      readOnlyRootFilesystem: true
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: ephemeral-registry
+  namespace: devops-lab
+spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+  containers:
+  - name: app
+    image: inventory-api:1.0
+    securityContext:
+      privileged: false
+      readOnlyRootFilesystem: true
+    resources:
+      limits:
+        cpu: 500m
+        memory: 256Mi
+  ephemeralContainers:
+  - name: helper
+    image: evil.example/helper:1.0
+    securityContext:
+      privileged: false
+      readOnlyRootFilesystem: true
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: outside-kyverno
+  namespace: kyverno
+spec:
+  containers:
+  - name: app
+    image: reg.kyverno.io/kyverno/kyverno:latest
+    securityContext:
+      privileged: true
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: outside-kube-system
+  namespace: kube-system
+spec:
+  containers:
+  - name: app
+    image: reg.kyverno.io/kyverno/kyverno:latest
+    securityContext:
+      privileged: true
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: outside-default
+  namespace: default
+spec:
+  containers:
+  - name: app
+    image: reg.kyverno.io/kyverno/kyverno:latest
+    securityContext:
+      privileged: true
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: zero-cpu-limit
+  namespace: devops-lab
+spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+  containers:
+  - name: app
+    image: inventory-api:1.0
+    securityContext:
+      privileged: false
+      readOnlyRootFilesystem: true
+    resources:
+      limits:
+        cpu: '0'
+        memory: 256Mi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: zero-memory-limit
+  namespace: devops-lab
+spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+  containers:
+  - name: app
+    image: inventory-api:1.0
+    securityContext:
+      privileged: false
+      readOnlyRootFilesystem: true
+    resources:
+      limits:
+        cpu: 500m
+        memory: 0Mi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: inherited-root-uid
+  namespace: devops-lab
+spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 0
+  containers:
+  - name: app
+    image: inventory-api:1.0
+    securityContext:
+      privileged: false
+      readOnlyRootFilesystem: true
+    resources:
+      limits:
+        cpu: 500m
+        memory: 256Mi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: overridden-root-uid
+  namespace: devops-lab
+spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 0
+  containers:
+  - name: app
+    image: inventory-api:1.0
+    securityContext:
+      privileged: false
+      readOnlyRootFilesystem: true
+      runAsUser: 10001
+    resources:
+      limits:
+        cpu: 500m
+        memory: 256Mi

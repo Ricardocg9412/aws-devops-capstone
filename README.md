@@ -333,3 +333,13 @@ approved application clients and DNS only; no Kubernetes RBAC grants are created
 See [runtime security](helm/inventory-api/SECURITY.md) for configuration,
 verification, and the CNI enforcement limitation. This baseline applies to the
 Helm deployment; migrate from the earlier standalone lab manifests accordingly.
+
+## Kyverno application admission policies
+
+[`kyverno/`](kyverno/README.md) contains six namespaced policies for non-root
+execution, CPU/memory limits, no privileged containers, read-only root filesystems,
+explicit non-latest image tags, and approved image repositories. They use the
+installed Kyverno 1.19.2 namespaced CEL API and target only `devops-lab`.
+The allowlist accounts for kind's `docker.io/library/inventory-api` image name.
+See the README for offline fixtures, server-side dry-run, and deliberate
+activation. The policy definitions have not been installed by this change.

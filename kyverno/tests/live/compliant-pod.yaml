@@ -1,0 +1,68 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: kyverno-compliant-pod
+  namespace: devops-lab
+  labels:
+    app.kubernetes.io/name: inventory-api
+    app.kubernetes.io/instance: kyverno-live-test
+spec:
+  restartPolicy: Never
+  automountServiceAccountToken: false
+  hostNetwork: false
+  hostPID: false
+  hostIPC: false
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+    runAsGroup: 10001
+    fsGroup: 10001
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+    - name: inventory-api
+      image: inventory-api:1.0
+      imagePullPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        privileged: false
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        capabilities:
+          drop: [ALL]
+      ports:
+        - name: http
+          containerPort: 8080
+      resources:
+        requests:
+          cpu: 100m
+          memory: 128Mi
+        limits:
+          cpu: 500m
+          memory: 256Mi
+      env:
+        - name: UVICORN_HOST
+          value: "0.0.0.0"
+        - name: UVICORN_PORT
+          value: "8080"
+        - name: PYTHONDONTWRITEBYTECODE
+          value: "1"
+        - name: INVENTORY_UNREADY_FILE
+          value: /tmp/inventory-api.unready
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: http
+      livenessProbe:
+        httpGet:
+          path: /health
+          port: http
+      volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+  volumes:
+    - name: tmp
+      emptyDir:
+        medium: Memory
+        sizeLimit: 32Mi

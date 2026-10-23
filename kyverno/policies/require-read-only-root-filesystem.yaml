@@ -1,0 +1,67 @@
+apiVersion: policies.kyverno.io/v1
+kind: NamespacedValidatingPolicy
+metadata:
+  name: require-read-only-root-filesystem
+  namespace: devops-lab
+  annotations:
+    policies.kyverno.io/title: Require Read Only Root Filesystem
+    policies.kyverno.io/category: Inventory API Runtime Security
+spec:
+  validationActions:
+  - Deny
+  failurePolicy: Fail
+  evaluation:
+    admission:
+      enabled: true
+    background:
+      enabled: false
+  matchConstraints:
+    resourceRules:
+    - apiGroups:
+      - ''
+      apiVersions:
+      - v1
+      operations:
+      - CREATE
+      - UPDATE
+      resources:
+      - pods
+      - pods/ephemeralcontainers
+      - replicationcontrollers
+    - apiGroups:
+      - apps
+      apiVersions:
+      - v1
+      operations:
+      - CREATE
+      - UPDATE
+      resources:
+      - deployments
+      - statefulsets
+      - daemonsets
+      - replicasets
+    - apiGroups:
+      - batch
+      apiVersions:
+      - v1
+      operations:
+      - CREATE
+      - UPDATE
+      resources:
+      - jobs
+      - cronjobs
+  variables:
+  - name: podSpec
+    expression: |-
+      request.kind.kind == 'Pod' ? object.spec : (request.kind.kind == 'CronJob' ? object.spec.jobTemplate.spec.template.spec : object.spec.template.spec)
+  - name: containers
+    expression: |-
+      variables.podSpec.containers + (has(variables.podSpec.initContainers) ? variables.podSpec.initContainers : []) + (has(variables.podSpec.ephemeralContainers) ? variables.podSpec.ephemeralContainers : [])
+  validations:
+  - expression: |-
+      variables.containers.all(c,
+        has(c.securityContext) && has(c.securityContext.readOnlyRootFilesystem) && c.securityContext.readOnlyRootFilesystem)
+    message: Every container must explicitly use a read-only root filesystem.
+  matchConditions:
+  - name: application-namespace-only
+    expression: request.namespace == 'devops-lab'
