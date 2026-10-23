@@ -11,3 +11,9 @@ __pycache__/
 .terraform.tfstate.lock.info
 *.tfplan
 crash.log
+
+# Python coverage and CI reports
+.coverage
+.coverage.*
+htmlcov/
+reports/

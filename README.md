@@ -343,3 +343,36 @@ installed Kyverno 1.19.2 namespaced CEL API and target only `devops-lab`.
 The allowlist accounts for kind's `docker.io/library/inventory-api` image name.
 See the README for offline fixtures, server-side dry-run, and deliberate
 activation. The policy definitions have not been installed by this change.
+
+### Continuous integration
+
+`.github/workflows/ci.yaml` runs all four validation jobs on pull requests to
+`main`, pushes to `main`, and manual dispatch. Each uses an explicit
+`ubuntu-24.04` runner. There are no path filters, so Python changes always run
+application checks alongside infrastructure and policy checks.
+
+- `python-tests`: Python 3.11, dependencies from `requirements-dev.txt`, pytest,
+  and statement coverage with an 80% minimum. JUnit XML, coverage XML, and HTML
+  coverage are uploaded as `python-test-reports` for 14 days, including when
+  tests fail if reports were generated.
+- `terraform-validate`: Terraform 1.16.6 runs `./scripts/terraform-validate.sh`.
+  Initialization skips remote backends, uses committed provider lock files,
+  and tests use mocked AWS providers. Provider installation needs internet
+  access, but these checks require no AWS credentials and run no real AWS plan.
+- `helm-validate`: Helm 4.3.1 lints and renders default, dev, and prod values,
+  then runs the Python chart suite, including security, HPA, and invalid values.
+- `kyverno-test`: official Kyverno CLI 1.19.2 container runs the local namespaced
+  CEL tests with a read-only repository mount; no cluster is required.
+
+Actions are pinned to full commit SHAs with release comments. The token has
+only `contents: read`, checkout does not persist credentials, and there are no
+cloud credentials, deployment secrets, publishing steps, or
+`pull_request_target` triggers. Any future publishing/deployment workflow must
+separately restrict execution to trusted branches/events and approved environments.
+PR code runs only on disposable GitHub-hosted runners.
+
+Python jobs cache pip downloads using both requirements files as cache inputs;
+dependency changes invalidate the key, and installation still runs on every job.
+The version ranges in requirements are not a full dependency lock, so unchanged
+ranges may resolve to newer compatible releases. Terraform provider selections
+remain controlled by committed lock files.
