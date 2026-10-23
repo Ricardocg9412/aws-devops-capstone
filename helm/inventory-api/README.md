@@ -1,7 +1,8 @@
 # Inventory API Helm chart
 
 Reusable chart for the existing FastAPI container. The chart defines a
-Deployment, Service, dedicated ServiceAccount, and non-sensitive ConfigMap.
+Deployment, Service, dedicated ServiceAccount, non-sensitive ConfigMap, and
+baseline NetworkPolicy.
 It does not install a cluster, ingress/Gateway controller, Metrics Server, or
 Secret. Rendering and tests require no Kubernetes connection.
 
@@ -99,7 +100,7 @@ helm template inventory-api-prod helm/inventory-api \
 | `readinessProbe`, `livenessProbe`, `startupProbe` | HTTP paths, timing, headers; startup probe optional |
 | `config` | String-valued, non-sensitive environment variables supplied by the ConfigMap |
 | `existingSecret` | Name of an independently managed Secret, loaded through envFrom |
-| `serviceAccount.create/name/automount/annotations` | Dedicated account by default; optional explicit existing account |
+| `serviceAccount.create/name/automount/annotations` | Dedicated account by default; optional existing account; automount must remain false |
 | `imagePullSecrets` | List such as `[{name: registry-credentials}]` |
 | `strategy.rollingUpdate.maxSurge` | Positive integer surge allowance; unavailable replicas remain fixed at zero |
 | `minReadySeconds`, `terminationGracePeriodSeconds` | Readiness stability and graceful termination windows |
@@ -126,15 +127,16 @@ its release metadata, and ConfigMaps are not secret storage. Provision secrets
 independently (for example via an external secret manager/controller) and pass
 only `existingSecret`. No Secret resource or secret value is rendered. Keep
 Secret keys distinct from ConfigMap keys: later Secret envFrom entries override
-ConfigMap duplicates, while explicit chart-managed bind/port variables win.
+ConfigMap duplicates, while explicit chart-managed bind/port, temporary-directory, bytecode, and
+readiness-marker variables win.
 External Secret changes need a separate controlled Pod restart/reloader; the
 ConfigMap checksum does not track external Secret content.
 
 With `serviceAccount.create=false`, `serviceAccount.name` is mandatory. Pod-level
 `automountServiceAccountToken=false` remains effective even if an existing
-account permits token mounts. No RBAC privileges are created. Enable token
-mounting only for an application that actually needs Kubernetes API access;
-this inventory API does not.
+account permits token mounts. No RBAC privileges are created. Token automount cannot be enabled through values for this chart: this API
+does not need Kubernetes API access. A future API integration requires a
+separate reviewed RBAC/token design.
 
 ## HPA, probes, and rollout compatibility
 
@@ -151,7 +153,8 @@ autoscaling:
 
 The chart omits Deployment replicas when HPA is enabled. A fixed non-null replica
 count combined with HPA is rejected, as are minReplicas > maxReplicas and missing
-or zero CPU requests. HPA needs the cluster resource-metrics API (usually Metrics
+or zero CPU requests. The broader runtime baseline requires positive CPU and
+memory requests/limits even when HPA is off. HPA needs the cluster resource-metrics API (usually Metrics
 Server). Do not enable autoscaling just to hide in-memory inventory consistency
 issues. When migrating an existing fixed-replica release to HPA, review the
 transition: removing the managed replicas field can cause a temporary scale
@@ -190,3 +193,16 @@ image availability, controllers, resource capacity, or actual HTTP probe respons
 
 References: [Helm named helpers](https://helm.sh/docs/chart_template_guide/named_templates/)
 and [Kubernetes rolling updates](https://kubernetes.io/docs/tasks/run-application/update-deployment-rolling/).
+
+## Runtime security baseline
+
+See [SECURITY.md](SECURITY.md) for the enforced UID 10001/non-root baseline,
+read-only root filesystem, dedicated writable `/tmp`, NetworkPolicy allowlists,
+RBAC posture, and commands demonstrating rejected root-filesystem writes while
+readiness and Service access continue working. Defaults also disable all host
+namespaces, privileges, escalation, capability additions, and token automount.
+Unsafe value overrides are rejected for every profile; the prod profile does
+not weaken the baseline. Configure approved clients before expecting traffic
+through the Service: default ingress requires the same-namespace Pod label
+`inventory-api/access: "true"`. Optional ingress/Gateway controllers need their
+own explicit approved peer. Policy enforcement requires a capable CNI.

@@ -39,6 +39,14 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 
 {{/* Reject combinations that JSON Schema cannot compare across fields. */}}
 {{- define "inventory-api.validate" -}}
+{{- range $section := list "requests" "limits" -}}
+{{- range $resource := list "cpu" "memory" -}}
+{{- $quantity := index (index $.Values.resources $section) $resource -}}
+{{- if le (float64 (regexFind "^[0-9]+[.]?[0-9]*" $quantity)) 0.0 -}}
+{{- fail (printf "resources.%s.%s must be positive" $section $resource) -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
 {{- if .Values.autoscaling.enabled -}}
 {{- if ne .Values.replicaCount nil -}}
 {{- fail "autoscaling.enabled=true requires replicaCount=null; HPA must own replicas" -}}
@@ -54,7 +62,7 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- if and .Values.ingress.enabled .Values.httpRoute.enabled -}}
 {{- fail "Enable only one of ingress or httpRoute" -}}
 {{- end -}}
-{{- range $key := list "UVICORN_PORT" "UVICORN_HOST" -}}
+{{- range $key := list "UVICORN_PORT" "UVICORN_HOST" "TMPDIR" "PYTHONDONTWRITEBYTECODE" -}}
 {{- if hasKey $.Values.config $key -}}
 {{- fail (printf "config.%s is chart-managed; configure containerPort for the port" $key) -}}
 {{- end -}}

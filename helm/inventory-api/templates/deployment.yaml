@@ -30,6 +30,15 @@ spec:
     spec:
       serviceAccountName: {{ include "inventory-api.serviceAccountName" . }}
       automountServiceAccountToken: {{ .Values.serviceAccount.automount }}
+      hostNetwork: {{ .Values.hostNetwork }}
+      hostPID: {{ .Values.hostPID }}
+      hostIPC: {{ .Values.hostIPC }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      volumes:
+        - name: tmp
+          emptyDir:
+            {{- toYaml .Values.tmpVolume | nindent 12 }}
       terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
@@ -39,6 +48,12 @@ spec:
         - name: {{ include "inventory-api.name" . }}
           image: {{ printf "%s:%s" .Values.image.repository .Values.image.tag | quote }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+              readOnly: false
           ports:
             - name: http
               containerPort: {{ .Values.containerPort }}
@@ -55,6 +70,12 @@ spec:
               value: "0.0.0.0"
             - name: UVICORN_PORT
               value: {{ .Values.containerPort | quote }}
+            - name: TMPDIR
+              value: /tmp
+            - name: PYTHONDONTWRITEBYTECODE
+              value: "1"
+            - name: INVENTORY_UNREADY_FILE
+              value: {{ .Values.config.INVENTORY_UNREADY_FILE | quote }}
           readinessProbe:
             {{- toYaml .Values.readinessProbe | nindent 12 }}
           livenessProbe:

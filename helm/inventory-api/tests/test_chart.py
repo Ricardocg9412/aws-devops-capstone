@@ -56,7 +56,7 @@ class ChartTests(unittest.TestCase):
 
     def test_all_lab_defaults_and_rollout(self):
         rendered = self.render()
-        self.assertEqual(set(rendered), {"Deployment", "Service", "ServiceAccount", "ConfigMap"})
+        self.assertEqual(set(rendered), {"Deployment", "Service", "ServiceAccount", "ConfigMap", "NetworkPolicy"})
         deployment = rendered["Deployment"]["spec"]
         container = self.container(rendered)
         self.assertEqual(deployment["replicas"], 2)
@@ -178,6 +178,68 @@ class ChartTests(unittest.TestCase):
         self.assertEqual(backend["name"], ingress["Service"]["metadata"]["name"])
         route = self.render({"httpRoute": {"enabled": True, "parentRefs": [{"name": "gateway"}]}})
         self.assertEqual(route["HTTPRoute"]["spec"]["rules"][0]["backendRefs"][0]["name"], route["Service"]["metadata"]["name"])
+
+    def test_runtime_security_baseline_and_writable_tmp(self):
+        rendered = self.render()
+        pod = rendered["Deployment"]["spec"]["template"]["spec"]
+        security = self.container(rendered)["securityContext"]
+        self.assertEqual(pod["securityContext"]["runAsUser"], 10001)
+        self.assertTrue(pod["securityContext"]["runAsNonRoot"])
+        self.assertEqual(pod["securityContext"]["seccompProfile"]["type"], "RuntimeDefault")
+        self.assertTrue(security["readOnlyRootFilesystem"])
+        self.assertFalse(security["privileged"])
+        self.assertFalse(security["allowPrivilegeEscalation"])
+        self.assertEqual(security["capabilities"]["drop"], ["ALL"])
+        for field in ["hostNetwork", "hostPID", "hostIPC"]:
+            self.assertFalse(pod[field])
+        self.assertEqual(pod["volumes"], [{"name": "tmp", "emptyDir": {"medium": "Memory", "sizeLimit": "32Mi"}}])
+        self.assertEqual(self.container(rendered)["volumeMounts"], [{"name": "tmp", "mountPath": "/tmp", "readOnly": False}])
+        env = {item["name"]: item["value"] for item in self.container(rendered)["env"]}
+        self.assertEqual(env["INVENTORY_UNREADY_FILE"], "/tmp/inventory-api.unready")
+        self.assertEqual(env["TMPDIR"], "/tmp")
+        self.assertNotIn("Role", rendered)
+        self.assertNotIn("RoleBinding", rendered)
+        self.assertNotIn("ClusterRoleBinding", rendered)
+
+    def test_network_policy_allows_only_opted_in_clients_and_dns(self):
+        rendered = self.render()
+        policy = rendered["NetworkPolicy"]["spec"]
+        self.assertEqual(policy["podSelector"]["matchLabels"], rendered["Service"]["spec"]["selector"])
+        self.assertEqual(policy["policyTypes"], ["Ingress", "Egress"])
+        self.assertEqual(policy["ingress"], [{"from": [{"podSelector": {"matchLabels": {"inventory-api/access": "true"}}}], "ports": [{"protocol": "TCP", "port": "http"}]}])
+        self.assertEqual(len(policy["egress"]), 1)
+        dns = policy["egress"][0]
+        self.assertEqual(dns["ports"], [{"protocol": "UDP", "port": 53}, {"protocol": "TCP", "port": 53}])
+        self.assertEqual(dns["to"], [{"namespaceSelector": {"matchLabels": {"kubernetes.io/metadata.name": "kube-system"}}, "podSelector": {"matchLabels": {"k8s-app": "kube-dns"}}}])
+        closed = self.render({"networkPolicy": {"ingressPeers": []}})
+        self.assertEqual(closed["NetworkPolicy"]["spec"]["ingress"], [])
+
+    def test_security_relaxations_are_rejected(self):
+        cases = [
+            {"podSecurityContext": {"runAsUser": 0}},
+            {"podSecurityContext": {"runAsNonRoot": False}},
+            {"securityContext": {"runAsUser": 0}},
+            {"securityContext": {"privileged": True}},
+            {"securityContext": {"allowPrivilegeEscalation": True}},
+            {"securityContext": {"readOnlyRootFilesystem": False}},
+            {"securityContext": {"capabilities": {"drop": []}}},
+            {"securityContext": {"capabilities": {"add": ["NET_ADMIN"]}}},
+            {"podSecurityContext": {"seccompProfile": {"type": "Unconfined"}}},
+            {"serviceAccount": {"automount": True}},
+            {"containerPort": 80},
+            {"resources": {"limits": {"memory": "0e9"}}},
+            {"hostNetwork": True}, {"hostPID": True}, {"hostIPC": True},
+            {"resources": {"requests": {"cpu": None}}},
+            {"resources": {"limits": {"memory": "0"}}},
+            {"config": {"INVENTORY_UNREADY_FILE": "/app/unready"}},
+            {"config": {"INVENTORY_UNREADY_FILE": "/tmp/../app/unready"}},
+            {"networkPolicy": {"ingressPeers": [{"podSelector": {}}]}},
+            {"networkPolicy": {"ingressPeers": [{"ipBlock": {"cidr": "0.0.0.0/0"}}]}},
+            {"networkPolicy": {"enabled": False}},
+        ]
+        for values in cases:
+            with self.subTest(values=values):
+                self.render(values, valid=False)
 
     def test_invalid_combinations_are_rejected(self):
         cases = [

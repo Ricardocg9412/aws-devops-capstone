@@ -322,3 +322,14 @@ The script stops at the first failure with a nonzero exit code. Provider downloa
 may require internet access, but tests do not contact AWS. See
 [Terraform testing](terraform/TESTING.md#one-command-validation) for how this differs
 from a real AWS plan.
+
+## Application runtime security
+
+The Helm chart now enforces UID 10001, non-root execution, no privileges or
+escalation, dropped capabilities, RuntimeDefault seccomp, a read-only root
+filesystem, no host namespaces, and no mounted ServiceAccount token. A bounded
+writable `/tmp` emptyDir preserves readiness simulation. Its NetworkPolicy allows
+approved application clients and DNS only; no Kubernetes RBAC grants are created.
+See [runtime security](helm/inventory-api/SECURITY.md) for configuration,
+verification, and the CNI enforcement limitation. This baseline applies to the
+Helm deployment; migrate from the earlier standalone lab manifests accordingly.
