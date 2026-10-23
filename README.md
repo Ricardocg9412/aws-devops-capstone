@@ -346,7 +346,7 @@ activation. The policy definitions have not been installed by this change.
 
 ### Continuous integration
 
-`.github/workflows/ci.yaml` runs all four validation jobs on pull requests to
+`.github/workflows/ci.yaml` runs the four source-validation jobs and the container checks below on pull requests to
 `main`, pushes to `main`, and manual dispatch. Each uses an explicit
 `ubuntu-24.04` runner. There are no path filters, so Python changes always run
 application checks alongside infrastructure and policy checks.
@@ -376,3 +376,46 @@ dependency changes invalidate the key, and installation still runs on every job.
 The version ranges in requirements are not a full dependency lock, so unchanged
 ranges may resolve to newer compatible releases. Terraform provider selections
 remain controlled by committed lock files.
+
+### Container build, vulnerability gate, and image handoff
+
+CI also runs three separate jobs:
+
+1. `docker-build` builds the existing `docker/Dockerfile` with repository-root
+   context, tagging the single-platform Linux/amd64 image as
+   `inventory-api:${{ github.sha }}`. Buildx uses GitHub Actions layer caching
+   (`cache-from` / `cache-to`, `mode=max`). Dockerfile and dependency changes
+   invalidate the affected layers. GitHub cache branch scoping isolates PR
+   writes from the trusted main-branch cache.
+2. `image-scan` downloads and verifies the image archive, then scans that exact
+   archive with Trivy 0.76.1. The security gate fails on **HIGH or CRITICAL** OS
+   or application-library vulnerabilities, including vulnerabilities without
+   available fixes. Scanner/database errors also fail the job; there is no
+   `continue-on-error`. The JSON vulnerability report is retained for 14 days
+   when generated, including on gate failure. Vulnerability databases update,
+   so an unchanged image may fail a later scan as new findings become known.
+3. `integration-test` requires the scan to pass. It downloads the same artifact
+   from the current workflow run, verifies its SHA-256 checksum, loads it, and
+   compares its Docker image ID with the recorded build identity. It runs
+   `scripts/image-integration-test.sh` without rebuilding or pulling the image.
+   Checks cover startup, health, OpenAPI, readiness failure and recovery while
+   running as UID 10001 with a read-only root filesystem and writable `/tmp`.
+   The container runs only on the disposable CI runner and is always cleaned up.
+
+The `inventory-image-<commit SHA>` artifact contains the Docker archive, archive
+checksum, and image ID, retained for three days. This follows Docker's
+[image handoff between jobs](https://docs.docker.com/build/ci/github-actions/share-image-jobs/)
+pattern. The workflow SHA on a PR normally identifies GitHub's tested merge
+commit, rather than only the contributor's head commit.
+
+Build success, vulnerability-gate success, publication, and deployment are
+separate outcomes. Uploading an internal workflow artifact is only a test
+handoff. This workflow never logs into ECR or Docker Hub, pushes an image, or
+performs an external deployment. Passing build, scan, and integration checks is
+not release approval; any future publishing/deployment stage must separately
+require trusted events/branches, all required checks, and environment approval.
+To smoke-test an already-loaded image locally:
+
+```sh
+./scripts/image-integration-test.sh inventory-api:1.0
+```
