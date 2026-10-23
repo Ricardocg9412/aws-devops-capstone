@@ -146,17 +146,48 @@ HPA is off by default. To enable it, use an override like:
 replicaCount: null
 autoscaling:
   enabled: true
-  minReplicas: 1
-  maxReplicas: 3
-  targetCPUUtilizationPercentage: 80
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 70
 ```
 
 The chart omits Deployment replicas when HPA is enabled. A fixed non-null replica
 count combined with HPA is rejected, as are minReplicas > maxReplicas and missing
 or zero CPU requests. The broader runtime baseline requires positive CPU and
-memory requests/limits even when HPA is off. HPA needs the cluster resource-metrics API (usually Metrics
-Server). Do not enable autoscaling just to hide in-memory inventory consistency
-issues. When migrating an existing fixed-replica release to HPA, review the
+memory requests/limits even when HPA is off. The application container requests
+`100m` CPU by default. The 70% target is relative to requested CPU, not the CPU
+limit: with this request, the target is an average of `70m` CPU per Pod.
+
+Save the override above as `hpa-values.yaml`, then enable it with:
+
+```sh
+helm upgrade --install inventory-api ./helm/inventory-api \
+  --namespace devops-lab --create-namespace -f hpa-values.yaml
+```
+
+Install a cluster-compatible [Metrics Server](https://github.com/kubernetes-sigs/metrics-server)
+separately; this chart does not install it. Metrics Server collects CPU and memory
+usage from node kubelets and exposes it through `metrics.k8s.io`. The HPA
+controller reads that API to calculate CPU utilization and adjust the Deployment.
+The application does not need a metrics endpoint, Kubernetes API permissions,
+or additional application egress for CPU autoscaling. Verify metrics availability
+and HPA status with:
+
+```sh
+kubectl get apiservice v1beta1.metrics.k8s.io
+kubectl top pods -n devops-lab
+kubectl get hpa -n devops-lab
+kubectl describe hpa inventory-api -n devops-lab
+```
+
+The APIService should be available and `kubectl top` should return usage. Missing
+metrics can show as `<unknown>` targets or `FailedGetResourceMetric` events;
+check Metrics Server logs and its connectivity/TLS configuration to kubelets.
+Local kind clusters may require additional Metrics Server configuration; follow
+its installation requirements rather than disabling TLS verification in production.
+See the [Kubernetes HPA documentation](https://kubernetes.io/docs/concepts/workloads/autoscaling/horizontal-pod-autoscale/).
+
+Do not enable autoscaling just to hide in-memory inventory consistency issues. When migrating an existing fixed-replica release to HPA, review the
 transition: removing the managed replicas field can cause a temporary scale
 change before the HPA reconciles. Disabling HPA requires a fixed replica count.
 

@@ -112,9 +112,9 @@ existingSecret: ""
 # When enabled, set replicaCount: null so the HPA owns the replica count.
 autoscaling:
   enabled: false
-  minReplicas: 1
-  maxReplicas: 3
-  targetCPUUtilizationPercentage: 80
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 70
 
 # Optional template features; controllers/CRDs are not installed by this chart.
 ingress:

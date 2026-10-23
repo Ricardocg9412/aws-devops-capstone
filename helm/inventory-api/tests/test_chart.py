@@ -158,10 +158,12 @@ class ChartTests(unittest.TestCase):
     def test_hpa_owns_replicas(self):
         rendered = self.render({"autoscaling": {"enabled": True}, "replicaCount": None})
         self.assertNotIn("replicas", rendered["Deployment"]["spec"])
+        self.assertEqual(self.container(rendered)["resources"]["requests"]["cpu"], "100m")
+        self.assertEqual(rendered["HorizontalPodAutoscaler"]["apiVersion"], "autoscaling/v2")
         hpa = rendered["HorizontalPodAutoscaler"]["spec"]
         self.assertEqual(hpa["scaleTargetRef"]["name"], rendered["Deployment"]["metadata"]["name"])
-        self.assertEqual((hpa["minReplicas"], hpa["maxReplicas"]), (1, 3))
-        self.assertEqual(hpa["metrics"][0]["resource"]["target"]["averageUtilization"], 80)
+        self.assertEqual((hpa["minReplicas"], hpa["maxReplicas"]), (2, 5))
+        self.assertEqual(hpa["metrics"][0]["resource"]["target"]["averageUtilization"], 70)
 
     def test_existing_service_account_and_secret_reference(self):
         rendered = self.render({"serviceAccount": {"create": False, "name": "existing-api"}, "existingSecret": "api-secrets"})
