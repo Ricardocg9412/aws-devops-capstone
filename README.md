@@ -398,13 +398,11 @@ CI also runs three separate jobs:
    including on scan failure. This advisory mode does not satisfy the original
    assignment's requirement for a failing severity-based security gate.
 3. `integration-test` requires the scan to complete successfully, even if it
-   reports vulnerabilities. It downloads the same artifact
-   from the current workflow run, verifies its SHA-256 checksum, loads it, and
-   compares its Docker image ID with the recorded build identity. It runs
-   `scripts/image-integration-test.sh` without rebuilding or pulling the image.
-   Checks cover startup, health, OpenAPI, readiness failure and recovery while
-   running as UID 10001 with a read-only root filesystem and writable `/tmp`.
-   The container runs only on the disposable CI runner and is always cleaned up.
+   reports vulnerabilities. It downloads the same artifact from this workflow
+   run, verifies its SHA-256 checksum, loads it, and compares the Docker image
+   ID with the recorded build identity. It first runs the hardened-container
+   readiness simulation, then deploys the same image in a temporary kind cluster
+   using Helm. There is no rebuild or image publication.
 
 The `inventory-image-<commit SHA>` artifact contains the Docker archive, archive
 checksum, and image ID, retained for three days. This follows Docker's
@@ -423,3 +421,56 @@ To smoke-test an already-loaded image locally:
 ```sh
 ./scripts/image-integration-test.sh inventory-api:1.0
 ```
+
+### Ephemeral Kubernetes integration
+
+CI calls the reusable `.github/workflows/integration.yaml` workflow through an
+`integration-test` job after `docker-build` and `image-scan` succeed. The reusable
+workflow uses `workflow_call`, retaining the caller's run, commit SHA, and image
+artifacts; it has no independent push/PR trigger and receives no deployment
+secrets. Both workflow files must be committed together. It creates a single-node kind 0.33.0 cluster with a pinned Kubernetes 1.37.0 node
+image. Cluster names include the run ID and attempt, and a separate kubeconfig
+plus explicit contexts isolate it from other clusters. The job loads the verified
+Docker image archive directly into kind and creates the dedicated
+`inventory-integration` namespace.
+
+Helm installs `helm/inventory-api` with `values-dev.yaml`, one replica, HPA off,
+the build's commit-SHA image tag, and `image.pullPolicy=Never`. This ensures a
+missing image fails instead of silently pulling another image. One replica
+keeps CRUD smoke tests consistent with process-local inventory storage. Runtime
+hardening and the chart's NetworkPolicy remain enabled. Kyverno is not installed
+in this job; the required offline policy suite runs before the Docker build.
+
+The job waits for Helm success, Deployment rollout, Ready Pods, and a ready
+Service EndpointSlice. It verifies the deployed image reference and the
+ClusterIP Service's port mapping, then starts a localhost-only port-forward
+through `service/inventory-api` and runs:
+
+```sh
+./scripts/smoke-test.sh http://127.0.0.1:8080
+```
+
+The script requires Bash, curl, and jq. It validates health (200), readiness
+(200), creation (201), retrieval and returned item data (200), duplicate rejection
+(409), deletion (204 with no body), and retrieval after deletion (404). Each run
+uses a unique asset ID. After successful creation, an EXIT trap attempts cleanup
+if a later assertion fails and preserves the original nonzero exit status even
+if cleanup fails too. Successful executions delete their test asset normally.
+Do not run it against a multi-replica in-memory instance behind a load balancer.
+
+On failure, CI collects available Pod descriptions, events, current and previous
+application logs, Service endpoints, Helm release details, kind node logs, and
+port-forward/smoke logs. Diagnostics are uploaded for seven days before cleanup.
+Partial startup failures still trigger best-effort collection. The port-forward
+is stopped and the temporary cluster is deleted even after failures.
+
+Deployment jobs use the target-scoped concurrency group
+`inventory-api-integration-dev` with `cancel-in-progress: false`, preventing
+simultaneous deployment jobs across branches in this repository. If moving to
+a shared environment, all workflows targeting that environment must use the
+same concurrency group and require the appropriate trusted deployment approvals.
+
+These checks exercise the real image and Kubernetes readiness/Service selection.
+A Service port-forward does not test ClusterIP packet routing or NetworkPolicy
+enforcement. Standard kind uses kindnet, which does not enforce NetworkPolicy;
+network isolation needs a separate test with an enforcing CNI.

@@ -192,26 +192,4 @@ jobs:
 
   integration-test:
     needs: [docker-build, image-scan]
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          persist-credentials: false
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          name: inventory-image-${{ github.sha }}
-          path: ${{ runner.temp }}/image
-      - name: Load and verify the exact scanned image without rebuilding
-        working-directory: ${{ runner.temp }}/image
-        env:
-          IMAGE_REF: inventory-api:${{ github.sha }}
-        run: |
-          sha256sum --check inventory-api.tar.sha256
-          docker load --input inventory-api.tar
-          actual_id=$(docker image inspect "$IMAGE_REF" --format '{{.Id}}')
-          test "$actual_id" = "$(cat image-id.txt)"
-      - name: Exercise container liveness and readiness with runtime hardening
-        env:
-          IMAGE_REF: inventory-api:${{ github.sha }}
-        run: ./scripts/image-integration-test.sh "$IMAGE_REF"
+    uses: ./.github/workflows/integration.yaml
