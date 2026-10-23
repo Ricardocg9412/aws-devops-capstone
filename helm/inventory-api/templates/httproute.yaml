@@ -1,0 +1,32 @@
+{{- if .Values.httpRoute.enabled }}
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ include "inventory-api.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "inventory-api.labels" . | nindent 4 }}
+  {{- with mergeOverwrite (deepCopy .Values.commonAnnotations) .Values.httpRoute.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  parentRefs:
+    {{- toYaml .Values.httpRoute.parentRefs | nindent 4 }}
+  {{- with .Values.httpRoute.hostnames }}
+  hostnames:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  rules:
+    {{- range .Values.httpRoute.rules }}
+    - matches:
+        {{- toYaml .matches | nindent 8 }}
+      {{- with .filters }}
+      filters:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      backendRefs:
+        - name: {{ include "inventory-api.fullname" $ }}
+          port: {{ $.Values.service.port }}
+    {{- end }}
+{{- end }}

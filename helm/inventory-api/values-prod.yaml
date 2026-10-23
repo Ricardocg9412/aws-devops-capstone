@@ -1,0 +1,7 @@
+# Production environment example only: inherited resources remain lab sizing.
+# Set an actual registry/image version and review sizing before real use.
+replicaCount: 2
+commonLabels:
+  environment: prod
+config:
+  INVENTORY_LOG_LEVEL: INFO

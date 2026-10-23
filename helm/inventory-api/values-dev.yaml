@@ -1,0 +1,6 @@
+# Development profile; one replica makes CRUD exploration consistent.
+replicaCount: 1
+commonLabels:
+  environment: dev
+config:
+  INVENTORY_LOG_LEVEL: DEBUG

@@ -1,0 +1,1275 @@
+apiVersion: cli.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: inventory-runtime-baseline
+policies:
+- ../policies/require-non-root.yaml
+- ../policies/require-resource-limits.yaml
+- ../policies/disallow-privileged.yaml
+- ../policies/require-read-only-root-filesystem.yaml
+- ../policies/disallow-latest-image-tag.yaml
+- ../policies/restrict-image-registries.yaml
+resources:
+- pods.yaml
+- controllers.yaml
+results:
+- policy: require-non-root
+  kind: Pod
+  resources:
+  - valid
+  result: pass
+- policy: require-resource-limits
+  kind: Pod
+  resources:
+  - valid
+  result: pass
+- policy: disallow-privileged
+  kind: Pod
+  resources:
+  - valid
+  result: pass
+- policy: require-read-only-root-filesystem
+  kind: Pod
+  resources:
+  - valid
+  result: pass
+- policy: disallow-latest-image-tag
+  kind: Pod
+  resources:
+  - valid
+  result: pass
+- policy: restrict-image-registries
+  kind: Pod
+  resources:
+  - valid
+  result: pass
+- policy: require-non-root
+  kind: Pod
+  resources:
+  - valid-canonical-image
+  result: pass
+- policy: require-resource-limits
+  kind: Pod
+  resources:
+  - valid-canonical-image
+  result: pass
+- policy: disallow-privileged
+  kind: Pod
+  resources:
+  - valid-canonical-image
+  result: pass
+- policy: require-read-only-root-filesystem
+  kind: Pod
+  resources:
+  - valid-canonical-image
+  result: pass
+- policy: disallow-latest-image-tag
+  kind: Pod
+  resources:
+  - valid-canonical-image
+  result: pass
+- policy: restrict-image-registries
+  kind: Pod
+  resources:
+  - valid-canonical-image
+  result: pass
+- policy: require-non-root
+  kind: Pod
+  resources:
+  - valid-index-alias
+  result: pass
+- policy: require-resource-limits
+  kind: Pod
+  resources:
+  - valid-index-alias
+  result: pass
+- policy: disallow-privileged
+  kind: Pod
+  resources:
+  - valid-index-alias
+  result: pass
+- policy: require-read-only-root-filesystem
+  kind: Pod
+  resources:
+  - valid-index-alias
+  result: pass
+- policy: disallow-latest-image-tag
+  kind: Pod
+  resources:
+  - valid-index-alias
+  result: pass
+- policy: restrict-image-registries
+  kind: Pod
+  resources:
+  - valid-index-alias
+  result: pass
+- policy: require-non-root
+  kind: Pod
+  resources:
+  - valid-tag-and-digest
+  result: pass
+- policy: require-resource-limits
+  kind: Pod
+  resources:
+  - valid-tag-and-digest
+  result: pass
+- policy: disallow-privileged
+  kind: Pod
+  resources:
+  - valid-tag-and-digest
+  result: pass
+- policy: require-read-only-root-filesystem
+  kind: Pod
+  resources:
+  - valid-tag-and-digest
+  result: pass
+- policy: disallow-latest-image-tag
+  kind: Pod
+  resources:
+  - valid-tag-and-digest
+  result: pass
+- policy: restrict-image-registries
+  kind: Pod
+  resources:
+  - valid-tag-and-digest
+  result: pass
+- policy: require-non-root
+  kind: Pod
+  resources:
+  - root-uid
+  result: fail
+- policy: require-resource-limits
+  kind: Pod
+  resources:
+  - root-uid
+  result: pass
+- policy: disallow-privileged
+  kind: Pod
+  resources:
+  - root-uid
+  result: pass
+- policy: require-read-only-root-filesystem
+  kind: Pod
+  resources:
+  - root-uid
+  result: pass
+- policy: disallow-latest-image-tag
+  kind: Pod
+  resources:
+  - root-uid
+  result: pass
+- policy: restrict-image-registries
+  kind: Pod
+  resources:
+  - root-uid
+  result: pass
+- policy: require-non-root
+  kind: Pod
+  resources:
+  - explicit-nonroot-false
+  result: fail
+- policy: require-resource-limits
+  kind: Pod
+  resources:
+  - explicit-nonroot-false
+  result: pass
+- policy: disallow-privileged
+  kind: Pod
+  resources:
+  - explicit-nonroot-false
+  result: pass
+- policy: require-read-only-root-filesystem
+  kind: Pod
+  resources:
+  - explicit-nonroot-false
+  result: pass
+- policy: disallow-latest-image-tag
+  kind: Pod
+  resources:
+  - explicit-nonroot-false
+  result: pass
+- policy: restrict-image-registries
+  kind: Pod
+  resources:
+  - explicit-nonroot-false
+  result: pass
+- policy: require-non-root
+  kind: Pod
+  resources:
+  - missing-nonroot
+  result: fail
+- policy: require-resource-limits
+  kind: Pod
+  resources:
+  - missing-nonroot
+  result: pass
+- policy: disallow-privileged
+  kind: Pod
+  resources:
+  - missing-nonroot
+  result: pass
+- policy: require-read-only-root-filesystem
+  kind: Pod
+  resources:
+  - missing-nonroot
+  result: pass
+- policy: disallow-latest-image-tag
+  kind: Pod
+  resources:
+  - missing-nonroot
+  result: pass
+- policy: restrict-image-registries
+  kind: Pod
+  resources:
+  - missing-nonroot
+  result: pass
+- policy: require-non-root
+  kind: Pod
+  resources:
+  - missing-cpu-limit
+  result: pass
+- policy: require-resource-limits
+  kind: Pod
+  resources:
+  - missing-cpu-limit
+  result: fail
+- policy: disallow-privileged
+  kind: Pod
+  resources:
+  - missing-cpu-limit
+  result: pass
+- policy: require-read-only-root-filesystem
+  kind: Pod
+  resources:
+  - missing-cpu-limit
+  result: pass
+- policy: disallow-latest-image-tag
+  kind: Pod
+  resources:
+  - missing-cpu-limit
+  result: pass
+- policy: restrict-image-registries
+  kind: Pod
+  resources:
+  - missing-cpu-limit
+  result: pass
+- policy: require-non-root
+  kind: Pod
+  resources:
+  - missing-memory-limit
+  result: pass
+- policy: require-resource-limits
+  kind: Pod
+  resources:
+  - missing-memory-limit
+  result: fail
+- policy: disallow-privileged
+  kind: Pod
+  resources:
+  - missing-memory-limit
+  result: pass
+- policy: require-read-only-root-filesystem
+  kind: Pod
+  resources:
+  - missing-memory-limit
+  result: pass
+- policy: disallow-latest-image-tag
+  kind: Pod
+  resources:
+  - missing-memory-limit
+  result: pass
+- policy: restrict-image-registries
+  kind: Pod
+  resources:
+  - missing-memory-limit
+  result: pass
+- policy: require-non-root
+  kind: Pod
+  resources:
+  - privileged
+  result: pass
+- policy: require-resource-limits
+  kind: Pod
+  resources:
+  - privileged
+  result: pass
+- policy: disallow-privileged
+  kind: Pod
+  resources:
+  - privileged
+  result: fail
+- policy: require-read-only-root-filesystem
+  kind: Pod
+  resources:
+  - privileged
+  result: pass
+- policy: disallow-latest-image-tag
+  kind: Pod
+  resources:
+  - privileged
+  result: pass
+- policy: restrict-image-registries
+  kind: Pod
+  resources:
+  - privileged
+  result: pass
+- policy: require-non-root
+  kind: Pod
+  resources:
+  - writable-root
+  result: pass
+- policy: require-resource-limits
+  kind: Pod
+  resources:
+  - writable-root
+  result: pass
+- policy: disallow-privileged
+  kind: Pod
+  resources:
+  - writable-root
+  result: pass
+- policy: require-read-only-root-filesystem
+  kind: Pod
+  resources:
+  - writable-root
+  result: fail
+- policy: disallow-latest-image-tag
+  kind: Pod
+  resources:
+  - writable-root
+  result: pass
+- policy: restrict-image-registries
+  kind: Pod
+  resources:
+  - writable-root
+  result: pass
+- policy: require-non-root
+  kind: Pod
+  resources:
+  - missing-readonly
+  result: pass
+- policy: require-resource-limits
+  kind: Pod
+  resources:
+  - missing-readonly
+  result: pass
+- policy: disallow-privileged
+  kind: Pod
+  resources:
+  - missing-readonly
+  result: pass
+- policy: require-read-only-root-filesystem
+  kind: Pod
+  resources:
+  - missing-readonly
+  result: fail
+- policy: disallow-latest-image-tag
+  kind: Pod
+  resources:
+  - missing-readonly
+  result: pass
+- policy: restrict-image-registries
+  kind: Pod
+  resources:
+  - missing-readonly
+  result: pass
+- policy: require-non-root
+  kind: Pod
+  resources:
+  - latest-image
+  result: pass
+- policy: require-resource-limits
+  kind: Pod
+  resources:
+  - latest-image
+  result: pass
+- policy: disallow-privileged
+  kind: Pod
+  resources:
+  - latest-image
+  result: pass
+- policy: require-read-only-root-filesystem
+  kind: Pod
+  resources:
+  - latest-image
+  result: pass
+- policy: disallow-latest-image-tag
+  kind: Pod
+  resources:
+  - latest-image
+  result: fail
+- policy: restrict-image-registries
+  kind: Pod
+  resources:
+  - latest-image
+  result: pass
+- policy: require-non-root
+  kind: Pod
+  resources:
+  - untagged-image
+  result: pass
+- policy: require-resource-limits
+  kind: Pod
+  resources:
+  - untagged-image
+  result: pass
+- policy: disallow-privileged
+  kind: Pod
+  resources:
+  - untagged-image
+  result: pass
+- policy: require-read-only-root-filesystem
+  kind: Pod
+  resources:
+  - untagged-image
+  result: pass
+- policy: disallow-latest-image-tag
+  kind: Pod
+  resources:
+  - untagged-image
+  result: fail
+- policy: restrict-image-registries
+  kind: Pod
+  resources:
+  - untagged-image
+  result: pass
+- policy: require-non-root
+  kind: Pod
+  resources:
+  - unapproved-registry
+  result: pass
+- policy: require-resource-limits
+  kind: Pod
+  resources:
+  - unapproved-registry
+  result: pass
+- policy: disallow-privileged
+  kind: Pod
+  resources:
+  - unapproved-registry
+  result: pass
+- policy: require-read-only-root-filesystem
+  kind: Pod
+  resources:
+  - unapproved-registry
+  result: pass
+- policy: disallow-latest-image-tag
+  kind: Pod
+  resources:
+  - unapproved-registry
+  result: pass
+- policy: restrict-image-registries
+  kind: Pod
+  resources:
+  - unapproved-registry
+  result: fail
+- policy: require-non-root
+  kind: Pod
+  resources:
+  - unapproved-hub-repository
+  result: pass
+- policy: require-resource-limits
+  kind: Pod
+  resources:
+  - unapproved-hub-repository
+  result: pass
+- policy: disallow-privileged
+  kind: Pod
+  resources:
+  - unapproved-hub-repository
+  result: pass
+- policy: require-read-only-root-filesystem
+  kind: Pod
+  resources:
+  - unapproved-hub-repository
+  result: pass
+- policy: disallow-latest-image-tag
+  kind: Pod
+  resources:
+  - unapproved-hub-repository
+  result: pass
+- policy: restrict-image-registries
+  kind: Pod
+  resources:
+  - unapproved-hub-repository
+  result: fail
+- policy: require-non-root
+  kind: Pod
+  resources:
+  - lookalike-repository
+  result: pass
+- policy: require-resource-limits
+  kind: Pod
+  resources:
+  - lookalike-repository
+  result: pass
+- policy: disallow-privileged
+  kind: Pod
+  resources:
+  - lookalike-repository
+  result: pass
+- policy: require-read-only-root-filesystem
+  kind: Pod
+  resources:
+  - lookalike-repository
+  result: pass
+- policy: disallow-latest-image-tag
+  kind: Pod
+  resources:
+  - lookalike-repository
+  result: pass
+- policy: restrict-image-registries
+  kind: Pod
+  resources:
+  - lookalike-repository
+  result: fail
+- policy: require-non-root
+  kind: Pod
+  resources:
+  - registry-port-without-tag
+  result: pass
+- policy: require-resource-limits
+  kind: Pod
+  resources:
+  - registry-port-without-tag
+  result: pass
+- policy: disallow-privileged
+  kind: Pod
+  resources:
+  - registry-port-without-tag
+  result: pass
+- policy: require-read-only-root-filesystem
+  kind: Pod
+  resources:
+  - registry-port-without-tag
+  result: pass
+- policy: disallow-latest-image-tag
+  kind: Pod
+  resources:
+  - registry-port-without-tag
+  result: fail
+- policy: restrict-image-registries
+  kind: Pod
+  resources:
+  - registry-port-without-tag
+  result: fail
+- policy: require-non-root
+  kind: Pod
+  resources:
+  - digest-without-tag
+  result: pass
+- policy: require-resource-limits
+  kind: Pod
+  resources:
+  - digest-without-tag
+  result: pass
+- policy: disallow-privileged
+  kind: Pod
+  resources:
+  - digest-without-tag
+  result: pass
+- policy: require-read-only-root-filesystem
+  kind: Pod
+  resources:
+  - digest-without-tag
+  result: pass
+- policy: disallow-latest-image-tag
+  kind: Pod
+  resources:
+  - digest-without-tag
+  result: fail
+- policy: restrict-image-registries
+  kind: Pod
+  resources:
+  - digest-without-tag
+  result: pass
+- policy: require-non-root
+  kind: Pod
+  resources:
+  - valid-init
+  result: pass
+- policy: require-resource-limits
+  kind: Pod
+  resources:
+  - valid-init
+  result: pass
+- policy: disallow-privileged
+  kind: Pod
+  resources:
+  - valid-init
+  result: pass
+- policy: require-read-only-root-filesystem
+  kind: Pod
+  resources:
+  - valid-init
+  result: pass
+- policy: disallow-latest-image-tag
+  kind: Pod
+  resources:
+  - valid-init
+  result: pass
+- policy: restrict-image-registries
+  kind: Pod
+  resources:
+  - valid-init
+  result: pass
+- policy: require-non-root
+  kind: Pod
+  resources:
+  - init-root
+  result: fail
+- policy: require-resource-limits
+  kind: Pod
+  resources:
+  - init-root
+  result: pass
+- policy: disallow-privileged
+  kind: Pod
+  resources:
+  - init-root
+  result: pass
+- policy: require-read-only-root-filesystem
+  kind: Pod
+  resources:
+  - init-root
+  result: pass
+- policy: disallow-latest-image-tag
+  kind: Pod
+  resources:
+  - init-root
+  result: pass
+- policy: restrict-image-registries
+  kind: Pod
+  resources:
+  - init-root
+  result: pass
+- policy: require-non-root
+  kind: Pod
+  resources:
+  - init-privileged
+  result: pass
+- policy: require-resource-limits
+  kind: Pod
+  resources:
+  - init-privileged
+  result: pass
+- policy: disallow-privileged
+  kind: Pod
+  resources:
+  - init-privileged
+  result: fail
+- policy: require-read-only-root-filesystem
+  kind: Pod
+  resources:
+  - init-privileged
+  result: pass
+- policy: disallow-latest-image-tag
+  kind: Pod
+  resources:
+  - init-privileged
+  result: pass
+- policy: restrict-image-registries
+  kind: Pod
+  resources:
+  - init-privileged
+  result: pass
+- policy: require-non-root
+  kind: Pod
+  resources:
+  - init-writable
+  result: pass
+- policy: require-resource-limits
+  kind: Pod
+  resources:
+  - init-writable
+  result: pass
+- policy: disallow-privileged
+  kind: Pod
+  resources:
+  - init-writable
+  result: pass
+- policy: require-read-only-root-filesystem
+  kind: Pod
+  resources:
+  - init-writable
+  result: fail
+- policy: disallow-latest-image-tag
+  kind: Pod
+  resources:
+  - init-writable
+  result: pass
+- policy: restrict-image-registries
+  kind: Pod
+  resources:
+  - init-writable
+  result: pass
+- policy: require-non-root
+  kind: Pod
+  resources:
+  - init-latest
+  result: pass
+- policy: require-resource-limits
+  kind: Pod
+  resources:
+  - init-latest
+  result: pass
+- policy: disallow-privileged
+  kind: Pod
+  resources:
+  - init-latest
+  result: pass
+- policy: require-read-only-root-filesystem
+  kind: Pod
+  resources:
+  - init-latest
+  result: pass
+- policy: disallow-latest-image-tag
+  kind: Pod
+  resources:
+  - init-latest
+  result: fail
+- policy: restrict-image-registries
+  kind: Pod
+  resources:
+  - init-latest
+  result: pass
+- policy: require-non-root
+  kind: Pod
+  resources:
+  - init-registry
+  result: pass
+- policy: require-resource-limits
+  kind: Pod
+  resources:
+  - init-registry
+  result: pass
+- policy: disallow-privileged
+  kind: Pod
+  resources:
+  - init-registry
+  result: pass
+- policy: require-read-only-root-filesystem
+  kind: Pod
+  resources:
+  - init-registry
+  result: pass
+- policy: disallow-latest-image-tag
+  kind: Pod
+  resources:
+  - init-registry
+  result: pass
+- policy: restrict-image-registries
+  kind: Pod
+  resources:
+  - init-registry
+  result: fail
+- policy: require-non-root
+  kind: Pod
+  resources:
+  - init-missing-limits
+  result: pass
+- policy: require-resource-limits
+  kind: Pod
+  resources:
+  - init-missing-limits
+  result: fail
+- policy: disallow-privileged
+  kind: Pod
+  resources:
+  - init-missing-limits
+  result: pass
+- policy: require-read-only-root-filesystem
+  kind: Pod
+  resources:
+  - init-missing-limits
+  result: pass
+- policy: disallow-latest-image-tag
+  kind: Pod
+  resources:
+  - init-missing-limits
+  result: pass
+- policy: restrict-image-registries
+  kind: Pod
+  resources:
+  - init-missing-limits
+  result: pass
+- policy: require-non-root
+  kind: Pod
+  resources:
+  - valid-ephemeral
+  result: pass
+- policy: require-resource-limits
+  kind: Pod
+  resources:
+  - valid-ephemeral
+  result: pass
+- policy: disallow-privileged
+  kind: Pod
+  resources:
+  - valid-ephemeral
+  result: pass
+- policy: require-read-only-root-filesystem
+  kind: Pod
+  resources:
+  - valid-ephemeral
+  result: pass
+- policy: disallow-latest-image-tag
+  kind: Pod
+  resources:
+  - valid-ephemeral
+  result: pass
+- policy: restrict-image-registries
+  kind: Pod
+  resources:
+  - valid-ephemeral
+  result: pass
+- policy: require-non-root
+  kind: Pod
+  resources:
+  - ephemeral-root
+  result: fail
+- policy: require-resource-limits
+  kind: Pod
+  resources:
+  - ephemeral-root
+  result: pass
+- policy: disallow-privileged
+  kind: Pod
+  resources:
+  - ephemeral-root
+  result: pass
+- policy: require-read-only-root-filesystem
+  kind: Pod
+  resources:
+  - ephemeral-root
+  result: pass
+- policy: disallow-latest-image-tag
+  kind: Pod
+  resources:
+  - ephemeral-root
+  result: pass
+- policy: restrict-image-registries
+  kind: Pod
+  resources:
+  - ephemeral-root
+  result: pass
+- policy: require-non-root
+  kind: Pod
+  resources:
+  - ephemeral-privileged
+  result: pass
+- policy: require-resource-limits
+  kind: Pod
+  resources:
+  - ephemeral-privileged
+  result: pass
+- policy: disallow-privileged
+  kind: Pod
+  resources:
+  - ephemeral-privileged
+  result: fail
+- policy: require-read-only-root-filesystem
+  kind: Pod
+  resources:
+  - ephemeral-privileged
+  result: pass
+- policy: disallow-latest-image-tag
+  kind: Pod
+  resources:
+  - ephemeral-privileged
+  result: pass
+- policy: restrict-image-registries
+  kind: Pod
+  resources:
+  - ephemeral-privileged
+  result: pass
+- policy: require-non-root
+  kind: Pod
+  resources:
+  - ephemeral-writable
+  result: pass
+- policy: require-resource-limits
+  kind: Pod
+  resources:
+  - ephemeral-writable
+  result: pass
+- policy: disallow-privileged
+  kind: Pod
+  resources:
+  - ephemeral-writable
+  result: pass
+- policy: require-read-only-root-filesystem
+  kind: Pod
+  resources:
+  - ephemeral-writable
+  result: fail
+- policy: disallow-latest-image-tag
+  kind: Pod
+  resources:
+  - ephemeral-writable
+  result: pass
+- policy: restrict-image-registries
+  kind: Pod
+  resources:
+  - ephemeral-writable
+  result: pass
+- policy: require-non-root
+  kind: Pod
+  resources:
+  - ephemeral-latest
+  result: pass
+- policy: require-resource-limits
+  kind: Pod
+  resources:
+  - ephemeral-latest
+  result: pass
+- policy: disallow-privileged
+  kind: Pod
+  resources:
+  - ephemeral-latest
+  result: pass
+- policy: require-read-only-root-filesystem
+  kind: Pod
+  resources:
+  - ephemeral-latest
+  result: pass
+- policy: disallow-latest-image-tag
+  kind: Pod
+  resources:
+  - ephemeral-latest
+  result: fail
+- policy: restrict-image-registries
+  kind: Pod
+  resources:
+  - ephemeral-latest
+  result: pass
+- policy: require-non-root
+  kind: Pod
+  resources:
+  - ephemeral-registry
+  result: pass
+- policy: require-resource-limits
+  kind: Pod
+  resources:
+  - ephemeral-registry
+  result: pass
+- policy: disallow-privileged
+  kind: Pod
+  resources:
+  - ephemeral-registry
+  result: pass
+- policy: require-read-only-root-filesystem
+  kind: Pod
+  resources:
+  - ephemeral-registry
+  result: pass
+- policy: disallow-latest-image-tag
+  kind: Pod
+  resources:
+  - ephemeral-registry
+  result: pass
+- policy: restrict-image-registries
+  kind: Pod
+  resources:
+  - ephemeral-registry
+  result: fail
+- policy: require-non-root
+  kind: Pod
+  resources:
+  - outside-kyverno
+  result: skip
+- policy: require-resource-limits
+  kind: Pod
+  resources:
+  - outside-kyverno
+  result: skip
+- policy: disallow-privileged
+  kind: Pod
+  resources:
+  - outside-kyverno
+  result: skip
+- policy: require-read-only-root-filesystem
+  kind: Pod
+  resources:
+  - outside-kyverno
+  result: skip
+- policy: disallow-latest-image-tag
+  kind: Pod
+  resources:
+  - outside-kyverno
+  result: skip
+- policy: restrict-image-registries
+  kind: Pod
+  resources:
+  - outside-kyverno
+  result: skip
+- policy: require-non-root
+  kind: Pod
+  resources:
+  - outside-kube-system
+  result: skip
+- policy: require-resource-limits
+  kind: Pod
+  resources:
+  - outside-kube-system
+  result: skip
+- policy: disallow-privileged
+  kind: Pod
+  resources:
+  - outside-kube-system
+  result: skip
+- policy: require-read-only-root-filesystem
+  kind: Pod
+  resources:
+  - outside-kube-system
+  result: skip
+- policy: disallow-latest-image-tag
+  kind: Pod
+  resources:
+  - outside-kube-system
+  result: skip
+- policy: restrict-image-registries
+  kind: Pod
+  resources:
+  - outside-kube-system
+  result: skip
+- policy: require-non-root
+  kind: Pod
+  resources:
+  - outside-default
+  result: skip
+- policy: require-resource-limits
+  kind: Pod
+  resources:
+  - outside-default
+  result: skip
+- policy: disallow-privileged
+  kind: Pod
+  resources:
+  - outside-default
+  result: skip
+- policy: require-read-only-root-filesystem
+  kind: Pod
+  resources:
+  - outside-default
+  result: skip
+- policy: disallow-latest-image-tag
+  kind: Pod
+  resources:
+  - outside-default
+  result: skip
+- policy: restrict-image-registries
+  kind: Pod
+  resources:
+  - outside-default
+  result: skip
+- policy: require-non-root
+  kind: Pod
+  resources:
+  - zero-cpu-limit
+  result: pass
+- policy: require-resource-limits
+  kind: Pod
+  resources:
+  - zero-cpu-limit
+  result: fail
+- policy: disallow-privileged
+  kind: Pod
+  resources:
+  - zero-cpu-limit
+  result: pass
+- policy: require-read-only-root-filesystem
+  kind: Pod
+  resources:
+  - zero-cpu-limit
+  result: pass
+- policy: disallow-latest-image-tag
+  kind: Pod
+  resources:
+  - zero-cpu-limit
+  result: pass
+- policy: restrict-image-registries
+  kind: Pod
+  resources:
+  - zero-cpu-limit
+  result: pass
+- policy: require-non-root
+  kind: Pod
+  resources:
+  - zero-memory-limit
+  result: pass
+- policy: require-resource-limits
+  kind: Pod
+  resources:
+  - zero-memory-limit
+  result: fail
+- policy: disallow-privileged
+  kind: Pod
+  resources:
+  - zero-memory-limit
+  result: pass
+- policy: require-read-only-root-filesystem
+  kind: Pod
+  resources:
+  - zero-memory-limit
+  result: pass
+- policy: disallow-latest-image-tag
+  kind: Pod
+  resources:
+  - zero-memory-limit
+  result: pass
+- policy: restrict-image-registries
+  kind: Pod
+  resources:
+  - zero-memory-limit
+  result: pass
+- policy: require-non-root
+  kind: Pod
+  resources:
+  - inherited-root-uid
+  result: fail
+- policy: require-resource-limits
+  kind: Pod
+  resources:
+  - inherited-root-uid
+  result: pass
+- policy: disallow-privileged
+  kind: Pod
+  resources:
+  - inherited-root-uid
+  result: pass
+- policy: require-read-only-root-filesystem
+  kind: Pod
+  resources:
+  - inherited-root-uid
+  result: pass
+- policy: disallow-latest-image-tag
+  kind: Pod
+  resources:
+  - inherited-root-uid
+  result: pass
+- policy: restrict-image-registries
+  kind: Pod
+  resources:
+  - inherited-root-uid
+  result: pass
+- policy: require-non-root
+  kind: Pod
+  resources:
+  - overridden-root-uid
+  result: pass
+- policy: require-resource-limits
+  kind: Pod
+  resources:
+  - overridden-root-uid
+  result: pass
+- policy: disallow-privileged
+  kind: Pod
+  resources:
+  - overridden-root-uid
+  result: pass
+- policy: require-read-only-root-filesystem
+  kind: Pod
+  resources:
+  - overridden-root-uid
+  result: pass
+- policy: disallow-latest-image-tag
+  kind: Pod
+  resources:
+  - overridden-root-uid
+  result: pass
+- policy: restrict-image-registries
+  kind: Pod
+  resources:
+  - overridden-root-uid
+  result: pass
+- policy: require-non-root
+  kind: Deployment
+  resources:
+  - valid-deployment
+  result: pass
+- policy: require-resource-limits
+  kind: Deployment
+  resources:
+  - valid-deployment
+  result: pass
+- policy: disallow-privileged
+  kind: Deployment
+  resources:
+  - valid-deployment
+  result: pass
+- policy: require-read-only-root-filesystem
+  kind: Deployment
+  resources:
+  - valid-deployment
+  result: pass
+- policy: disallow-latest-image-tag
+  kind: Deployment
+  resources:
+  - valid-deployment
+  result: pass
+- policy: restrict-image-registries
+  kind: Deployment
+  resources:
+  - valid-deployment
+  result: pass
+- policy: require-non-root
+  kind: Deployment
+  resources:
+  - writable-deployment
+  result: pass
+- policy: require-resource-limits
+  kind: Deployment
+  resources:
+  - writable-deployment
+  result: pass
+- policy: disallow-privileged
+  kind: Deployment
+  resources:
+  - writable-deployment
+  result: pass
+- policy: require-read-only-root-filesystem
+  kind: Deployment
+  resources:
+  - writable-deployment
+  result: fail
+- policy: disallow-latest-image-tag
+  kind: Deployment
+  resources:
+  - writable-deployment
+  result: pass
+- policy: restrict-image-registries
+  kind: Deployment
+  resources:
+  - writable-deployment
+  result: pass
+- policy: require-non-root
+  kind: CronJob
+  resources:
+  - latest-cronjob
+  result: pass
+- policy: require-resource-limits
+  kind: CronJob
+  resources:
+  - latest-cronjob
+  result: pass
+- policy: disallow-privileged
+  kind: CronJob
+  resources:
+  - latest-cronjob
+  result: pass
+- policy: require-read-only-root-filesystem
+  kind: CronJob
+  resources:
+  - latest-cronjob
+  result: pass
+- policy: disallow-latest-image-tag
+  kind: CronJob
+  resources:
+  - latest-cronjob
+  result: fail
+- policy: restrict-image-registries
+  kind: CronJob
+  resources:
+  - latest-cronjob
+  result: pass

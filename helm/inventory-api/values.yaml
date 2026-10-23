@@ -1,0 +1,135 @@
+# Lab defaults, not production sizing recommendations.
+nameOverride: ""
+fullnameOverride: ""
+replicaCount: 2
+
+image:
+  repository: inventory-api
+  tag: "1.0"
+  pullPolicy: IfNotPresent
+imagePullSecrets: []
+containerPort: 8080
+
+commonLabels: {}
+commonAnnotations: {}
+podLabels: {}
+podAnnotations: {}
+deploymentAnnotations: {}
+
+serviceAccount:
+  create: true
+  name: ""
+  automount: false
+  annotations: {}
+
+# Mandatory runtime baseline; unsafe values are rejected by the schema.
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001
+  fsGroupChangePolicy: OnRootMismatch
+  seccompProfile:
+    type: RuntimeDefault
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  privileged: false
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: [ALL]
+  seccompProfile:
+    type: RuntimeDefault
+hostNetwork: false
+hostPID: false
+hostIPC: false
+# Only /tmp is writable. Memory-backed storage counts toward Pod memory usage.
+tmpVolume:
+  medium: Memory
+  sizeLimit: 32Mi
+
+networkPolicy:
+  # Same-namespace clients must opt in with this Pod label.
+  ingressPeers:
+    - podSelector:
+        matchLabels:
+          inventory-api/access: "true"
+  dns:
+    namespaceSelector:
+      matchLabels:
+        kubernetes.io/metadata.name: kube-system
+    podSelector:
+      matchLabels:
+        k8s-app: kube-dns
+    # Optional /32 resolver addresses for a reviewed NodeLocal DNS setup.
+    additionalServerCIDRs: []
+
+service:
+  type: ClusterIP
+  port: 80
+  annotations: {}
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: http
+  periodSeconds: 5
+  timeoutSeconds: 2
+  failureThreshold: 3
+livenessProbe:
+  httpGet:
+    path: /health
+    port: http
+  periodSeconds: 10
+  timeoutSeconds: 2
+  failureThreshold: 3
+startupProbe: null
+
+strategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: 1
+    maxUnavailable: 0
+minReadySeconds: 5
+terminationGracePeriodSeconds: 30
+
+# Non-sensitive environment variables only. Bind address/port are chart-managed.
+config:
+  INVENTORY_LOG_LEVEL: INFO
+  INVENTORY_UNREADY_FILE: /tmp/inventory-api.unready
+# Reference to an independently managed Secret; do not put secret values here.
+existingSecret: ""
+
+# When enabled, set replicaCount: null so the HPA owns the replica count.
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 70
+
+# Optional template features; controllers/CRDs are not installed by this chart.
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts: []
+  tls: []
+httpRoute:
+  enabled: false
+  annotations: {}
+  parentRefs: []
+  hostnames: []
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /

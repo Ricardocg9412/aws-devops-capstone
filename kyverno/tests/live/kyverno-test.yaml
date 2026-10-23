@@ -1,0 +1,75 @@
+apiVersion: cli.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: live-fixture-admission-expectations
+policies:
+- ../../policies/disallow-latest-image-tag.yaml
+- ../../policies/disallow-privileged.yaml
+- ../../policies/require-non-root.yaml
+- ../../policies/require-read-only-root-filesystem.yaml
+- ../../policies/require-resource-limits.yaml
+- ../../policies/restrict-image-registries.yaml
+resources:
+- compliant-pod.yaml
+- noncompliant-pod.yaml
+results:
+- policy: disallow-latest-image-tag
+  kind: Pod
+  resources:
+  - kyverno-compliant-pod
+  result: pass
+- policy: disallow-privileged
+  kind: Pod
+  resources:
+  - kyverno-compliant-pod
+  result: pass
+- policy: require-non-root
+  kind: Pod
+  resources:
+  - kyverno-compliant-pod
+  result: pass
+- policy: require-read-only-root-filesystem
+  kind: Pod
+  resources:
+  - kyverno-compliant-pod
+  result: pass
+- policy: require-resource-limits
+  kind: Pod
+  resources:
+  - kyverno-compliant-pod
+  result: pass
+- policy: restrict-image-registries
+  kind: Pod
+  resources:
+  - kyverno-compliant-pod
+  result: pass
+- policy: disallow-latest-image-tag
+  kind: Pod
+  resources:
+  - kyverno-noncompliant-pod
+  result: fail
+- policy: disallow-privileged
+  kind: Pod
+  resources:
+  - kyverno-noncompliant-pod
+  result: fail
+- policy: require-non-root
+  kind: Pod
+  resources:
+  - kyverno-noncompliant-pod
+  result: fail
+- policy: require-read-only-root-filesystem
+  kind: Pod
+  resources:
+  - kyverno-noncompliant-pod
+  result: fail
+- policy: require-resource-limits
+  kind: Pod
+  resources:
+  - kyverno-noncompliant-pod
+  result: fail
+- policy: restrict-image-registries
+  kind: Pod
+  resources:
+  - kyverno-noncompliant-pod
+  result: fail

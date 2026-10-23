@@ -147,6 +147,28 @@ kubectl delete -f k8s/service.yaml -f k8s/deployment.yaml
 
 This leaves the namespace intact. Container restarts, Pod replacement, and rolling updates lose the affected process's inventory.
 
+## Reusable Helm chart
+
+[`helm/inventory-api`](helm/inventory-api/README.md) packages the application as a
+Deployment, Service, dedicated ServiceAccount with token automount disabled, and
+ConfigMap. Defaults match the lab requirements: image `inventory-api:1.0`, two
+replicas, container port 8080, Service port 80, health/readiness probes, and
+100m/128Mi requests with 500m/256Mi limits. These are lab resource settings.
+Separate dev/prod values, optional HPA, existing Secret references, and rolling
+updates are documented in the chart README. Multiple replicas still have
+independent in-memory inventories.
+
+```sh
+helm lint helm/inventory-api --strict
+helm template inventory-api-dev helm/inventory-api --namespace devops-lab \
+  -f helm/inventory-api/values-dev.yaml
+python3 -m unittest discover -s helm/inventory-api/tests -v
+```
+
+Chart creation and tests do not install anything into Kubernetes. See the chart
+README for installation and migration guidance; existing `k8s/` manifests remain
+available and are managed independently.
+
 ## Endpoints
 
 | Method | Path | Behavior |
@@ -300,3 +322,24 @@ The script stops at the first failure with a nonzero exit code. Provider downloa
 may require internet access, but tests do not contact AWS. See
 [Terraform testing](terraform/TESTING.md#one-command-validation) for how this differs
 from a real AWS plan.
+
+## Application runtime security
+
+The Helm chart now enforces UID 10001, non-root execution, no privileges or
+escalation, dropped capabilities, RuntimeDefault seccomp, a read-only root
+filesystem, no host namespaces, and no mounted ServiceAccount token. A bounded
+writable `/tmp` emptyDir preserves readiness simulation. Its NetworkPolicy allows
+approved application clients and DNS only; no Kubernetes RBAC grants are created.
+See [runtime security](helm/inventory-api/SECURITY.md) for configuration,
+verification, and the CNI enforcement limitation. This baseline applies to the
+Helm deployment; migrate from the earlier standalone lab manifests accordingly.
+
+## Kyverno application admission policies
+
+[`kyverno/`](kyverno/README.md) contains six namespaced policies for non-root
+execution, CPU/memory limits, no privileged containers, read-only root filesystems,
+explicit non-latest image tags, and approved image repositories. They use the
+installed Kyverno 1.19.2 namespaced CEL API and target only `devops-lab`.
+The allowlist accounts for kind's `docker.io/library/inventory-api` image name.
+See the README for offline fixtures, server-side dry-run, and deliberate
+activation. The policy definitions have not been installed by this change.

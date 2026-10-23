@@ -1,0 +1,41 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "inventory-api.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "inventory-api.labels" . | nindent 4 }}
+  {{- with .Values.commonAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "inventory-api.selectorLabels" . | nindent 6 }}
+  policyTypes: [Ingress, Egress]
+  {{- if .Values.networkPolicy.ingressPeers }}
+  ingress:
+    - from:
+        {{- toYaml .Values.networkPolicy.ingressPeers | nindent 8 }}
+      ports:
+        - protocol: TCP
+          port: http
+  {{- else }}
+  ingress: []
+  {{- end }}
+  egress:
+    - to:
+        - namespaceSelector:
+            {{- toYaml .Values.networkPolicy.dns.namespaceSelector | nindent 12 }}
+          podSelector:
+            {{- toYaml .Values.networkPolicy.dns.podSelector | nindent 12 }}
+        {{- range .Values.networkPolicy.dns.additionalServerCIDRs }}
+        - ipBlock:
+            cidr: {{ . | quote }}
+        {{- end }}
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
