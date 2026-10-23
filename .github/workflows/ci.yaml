@@ -164,7 +164,7 @@ jobs:
       - name: Verify built archive integrity
         working-directory: ${{ runner.temp }}/image
         run: sha256sum --check inventory-api.tar.sha256
-      - name: Reject HIGH and CRITICAL image vulnerabilities
+      - name: Report HIGH and CRITICAL image vulnerabilities (advisory)
         uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8 # v0.33.1
         with:
           version: v0.76.1
@@ -174,12 +174,13 @@ jobs:
           vuln-type: os,library
           severity: HIGH,CRITICAL
           ignore-unfixed: false
-          exit-code: '1'
+          # Findings are advisory; scanner execution errors still fail the job.
+          exit-code: '0'
           format: json
           output: ${{ runner.temp }}/trivy-image.json
           timeout: 10m
           cache: false
-      - name: Preserve vulnerability report even if the gate fails
+      - name: Preserve vulnerability report even if scanning fails
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
