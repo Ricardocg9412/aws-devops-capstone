@@ -113,6 +113,7 @@ jobs:
             test kyverno/tests
 
   docker-build:
+    needs: [python-tests, terraform-validate, helm-validate, kyverno-test]
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:

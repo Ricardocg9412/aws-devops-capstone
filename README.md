@@ -381,7 +381,9 @@ remain controlled by committed lock files.
 
 CI also runs three separate jobs:
 
-1. `docker-build` builds the existing `docker/Dockerfile` with repository-root
+1. `docker-build` runs only after `python-tests`, `terraform-validate`,
+   `helm-validate`, and `kyverno-test` all succeed. It builds the existing
+   `docker/Dockerfile` with repository-root
    context, tagging the single-platform Linux/amd64 image as
    `inventory-api:${{ github.sha }}`. Buildx uses GitHub Actions layer caching
    (`cache-from` / `cache-to`, `mode=max`). Dockerfile and dependency changes
