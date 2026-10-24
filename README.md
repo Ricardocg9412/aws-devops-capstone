@@ -346,7 +346,7 @@ activation. The policy definitions have not been installed by this change.
 
 ### Continuous integration
 
-`.github/workflows/ci.yaml` runs all four validation jobs on pull requests to
+`.github/workflows/ci.yaml` runs the four source-validation jobs and the container checks below on pull requests to
 `main`, pushes to `main`, and manual dispatch. Each uses an explicit
 `ubuntu-24.04` runner. There are no path filters, so Python changes always run
 application checks alongside infrastructure and policy checks.
@@ -376,3 +376,193 @@ dependency changes invalidate the key, and installation still runs on every job.
 The version ranges in requirements are not a full dependency lock, so unchanged
 ranges may resolve to newer compatible releases. Terraform provider selections
 remain controlled by committed lock files.
+
+### Container build, advisory vulnerability scan, and image handoff
+
+CI also runs three separate jobs:
+
+1. `docker-build` runs only after `python-tests`, `terraform-validate`,
+   `helm-validate`, and `kyverno-test` all succeed. It builds the existing
+   `docker/Dockerfile` with repository-root
+   context, tagging the single-platform Linux/amd64 image as
+   `inventory-api:${{ github.sha }}`. Buildx uses GitHub Actions layer caching
+   (`cache-from` / `cache-to`, `mode=max`). Dockerfile and dependency changes
+   invalidate the affected layers. GitHub cache branch scoping isolates PR
+   writes from the trusted main-branch cache.
+2. `image-scan` downloads and verifies the image archive, then scans that exact
+   archive with Trivy 0.76.1. Scanning is **advisory**: HIGH and CRITICAL OS
+   and application-library vulnerabilities are reported, including those without
+   available fixes, but findings do not fail CI (`exit-code: '0'`). Scanner and
+   database errors still fail the job; there is no `continue-on-error`.
+   The JSON vulnerability report is retained for 14 days when generated,
+   including on scan failure. This advisory mode does not satisfy the original
+   assignment's requirement for a failing severity-based security gate.
+3. `integration-test` requires the scan to complete successfully, even if it
+   reports vulnerabilities. It downloads the same artifact from this workflow
+   run, verifies its SHA-256 checksum, loads it, and compares the Docker image
+   ID with the recorded build identity. It first runs the hardened-container
+   readiness simulation, then deploys the same image in a temporary kind cluster
+   using Helm. There is no rebuild or image publication.
+
+The `inventory-image-<commit SHA>` artifact contains the Docker archive, archive
+checksum, and image ID, retained for three days. This follows Docker's
+[image handoff between jobs](https://docs.docker.com/build/ci/github-actions/share-image-jobs/)
+pattern. The workflow SHA on a PR normally identifies GitHub's tested merge
+commit, rather than only the contributor's head commit.
+
+Build success, scan completion, publication, and deployment are
+separate outcomes. Uploading an internal workflow artifact is only a test
+handoff. This workflow never logs into ECR or Docker Hub, pushes an image, or
+performs an external deployment. Passing build, scan, and integration checks is
+not release approval; any future publishing/deployment stage must separately
+require trusted events/branches, all required checks, and environment approval.
+To smoke-test an already-loaded image locally:
+
+```sh
+./scripts/image-integration-test.sh inventory-api:1.0
+```
+
+### Ephemeral Kubernetes integration
+
+CI calls the reusable `.github/workflows/integration.yaml` workflow through an
+`integration-test` job after `docker-build` and `image-scan` succeed. The reusable
+workflow uses `workflow_call`, retaining the caller's run, commit SHA, and image
+artifacts; it has no independent push/PR trigger and receives no deployment
+secrets. Both workflow files must be committed together. It creates a single-node kind 0.33.0 cluster with a pinned Kubernetes 1.37.0 node
+image. Cluster names include the run ID and attempt, and a separate kubeconfig
+plus explicit contexts isolate it from other clusters. The job loads the verified
+Docker image archive directly into kind and creates the dedicated
+`inventory-integration` namespace.
+
+Helm installs `helm/inventory-api` with `values-dev.yaml`, one replica, HPA off,
+the build's commit-SHA image tag, and `image.pullPolicy=Never`. This ensures a
+missing image fails instead of silently pulling another image. One replica
+keeps CRUD smoke tests consistent with process-local inventory storage. Runtime
+hardening and the chart's NetworkPolicy remain enabled. Kyverno is not installed
+in this job; the required offline policy suite runs before the Docker build.
+
+The job waits for Helm success, Deployment rollout, Ready Pods, and a ready
+Service EndpointSlice. It verifies the deployed image reference and the
+ClusterIP Service's port mapping, then starts a localhost-only port-forward
+through `service/inventory-api` and runs:
+
+```sh
+./scripts/smoke-test.sh http://127.0.0.1:8080
+```
+
+The script requires Bash, curl, and jq. It validates health (200), readiness
+(200), creation (201), retrieval and returned item data (200), duplicate rejection
+(409), deletion (204 with no body), and retrieval after deletion (404). Each run
+uses a unique asset ID. After successful creation, an EXIT trap attempts cleanup
+if a later assertion fails and preserves the original nonzero exit status even
+if cleanup fails too. Successful executions delete their test asset normally.
+Do not run it against a multi-replica in-memory instance behind a load balancer.
+
+On failure, CI runs `scripts/collect-diagnostics.sh` to collect scoped Pod
+descriptions, events, current and previous application logs, Service endpoints,
+rollout status, Helm status/history, HTTP log summaries, and available metrics.
+Port-forward/smoke logs are retained alongside the timestamped collection.
+Diagnostics are uploaded for seven days before cleanup. Partial startup failures
+still trigger best-effort collection. The port-forward is stopped and the
+temporary cluster is deleted even after failures.
+
+Deployment jobs use the target-scoped concurrency group
+`inventory-api-integration-dev` with `cancel-in-progress: false`, preventing
+simultaneous deployment jobs across branches in this repository. If moving to
+a shared environment, all workflows targeting that environment must use the
+same concurrency group and require the appropriate trusted deployment approvals.
+
+These checks exercise the real image and Kubernetes readiness/Service selection.
+A Service port-forward does not test ClusterIP packet routing or NetworkPolicy
+enforcement. Standard kind uses kindnet, which does not enforce NetworkPolicy;
+network isolation needs a separate test with an enforcing CNI.
+
+### Operational evidence and request-log analysis
+
+Collect diagnostics for a namespace and Helm release without changing the
+workload:
+
+```sh
+KUBE_CONTEXT=kind-devops-lab ./scripts/collect-diagnostics.sh devops-lab inventory-api
+```
+
+The collector requires Bash and jq, and uses kubectl and Helm for available
+cluster evidence. `KUBE_CONTEXT` is optional; otherwise the current context is
+used. Output is a private directory such as
+`diagnostics/20261024T000000Z-devops-lab-inventory-api.XXXXXX`, with a UTC timestamp
+and a unique suffix. Set `DIAGNOSTICS_DIR` to change the parent directory. Local
+`diagnostics/` output is ignored by Git.
+
+| Signal | Evidence |
+| --- | --- |
+| Pod readiness and restarts | `pod-readiness-restarts.json`, `pod-descriptions.txt`, `pods.json` |
+| Image, exit codes, previous container state, probes and resource requests/limits | Selected Pod fields and `deployments.json` |
+| Scheduling or startup errors | Namespace `events.json`, per-Deployment `rollout-*.txt`, assigned-node conditions/capacity in `node-*.json` |
+| CPU/memory usage | `metrics-pods.txt` per container and `metrics-node-*.txt` when metrics-server is available |
+| Application errors and latency | `logs-*.log`, including the last previous instance for restarted containers, and `http-summary.json` |
+| Release outcome and revisions | `helm-status.json`, `helm-history.json` (up to ten revisions) |
+| Traffic eligibility | `services.json`, `endpoints-*.json` |
+
+Each collection command has an exit code in `collection-status.tsv` and a
+corresponding `.stderr` file. Missing metrics-server, unavailable previous logs,
+failed rollouts, permission errors, or a partially created cluster do not stop
+other collection commands. Kubernetes requests have a ten-second timeout and
+rollout checks take a snapshot without waiting for recovery. The collector
+returns success after best-effort collection; this does not declare the workload
+healthy or override the original CI failure. Invalid arguments, a missing jq,
+or an unwritable output directory still return nonzero.
+
+Interpret common failure patterns:
+
+- **Image pull:** waiting reasons such as `ErrImagePull`, `ImagePullBackOff`, or
+  `ErrImageNeverPull`, plus image-related events. Application logs may be absent.
+- **Application crash:** restarts, `CrashLoopBackOff`, last termination reason
+  and exit code, and the previous container's log stream.
+- **Readiness failure:** a running container with Ready false, probe settings,
+  `Unhealthy` events, and no ready Service endpoint. HTTP 503 logs can corroborate
+  readiness failures when the application receives the probe.
+- **Scheduling failure:** Pending Pod, no assigned node, `PodScheduled=False`,
+  and `FailedScheduling`/`Unschedulable` messages such as insufficient CPU.
+
+Metrics Server supplies the `metrics.k8s.io` API used by `kubectl top`; basic kind
+integration does not install it. Missing live usage is recorded as unavailable,
+not zero. Requests/limits and scheduling/node conditions remain available without
+metrics-server. Instantaneous usage alone is not proof of historical pressure.
+
+Analyze application logs independently with:
+
+```sh
+./scripts/log-analyzer.sh diagnostics/<collection>/logs-*.log
+# Or stream newline-delimited JSON:
+kubectl -n devops-lab logs deployment/inventory-api | ./scripts/log-analyzer.sh -
+```
+
+The analyzer reads actual `request_completed` JSON entries and uses `status_code`
+and `duration_ms`. It reports total requests, HTTP 4xx/5xx counts, the most frequent
+method/path and its count, and average duration in milliseconds. Equal-frequency
+endpoints use lexical order to make the result deterministic. Non-request or
+malformed lines are counted as ignored. Missing/invalid durations do not affect
+request counts; `duration_samples` states the average's denominator. No requests
+or duration samples produce null endpoint/average values rather than misleading
+zeros. Endpoint paths are literal paths, so individual item IDs remain distinct.
+
+Collection captures up to 1,000 recent lines per container/stream, including
+probes. Counts and averages describe only those captured logs, not lifetime
+traffic. Only the immediately previous container instance is available through
+`--previous`. Consult collection exit codes before interpreting an empty summary.
+
+The collector never requests Kubernetes Secrets, reads Helm values/manifests,
+prints kubeconfigs, dumps environments, or exports unrestricted kind cluster
+state. Pod descriptions are rendered from allowlisted JSON fields rather than
+raw `kubectl describe`, which can reveal literal environment values. Helm output
+is similarly projected before being written. Common structured credential fields,
+Authorization tokens, AWS access-key IDs, and credentials in URLs are redacted
+from application logs while preserving request-log fields and startup errors.
+Applications must still avoid emitting secrets in arbitrary free text; pattern
+redaction cannot recognize every possible secret. Only upload reviewed diagnostic
+artifacts to systems with the appropriate access controls.
+
+The local pytest suite tests image-pull, crash, readiness, and scheduling evidence,
+collection with unavailable metrics/cluster access, credential-field omission,
+and request-log aggregation without requiring Kubernetes or AWS. Script tests
+require jq; they are skipped when jq is absent.

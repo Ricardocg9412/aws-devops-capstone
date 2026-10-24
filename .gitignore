@@ -17,3 +17,6 @@ crash.log
 .coverage.*
 htmlcov/
 reports/
+
+# Timestamped operational evidence
+diagnostics/

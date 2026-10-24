@@ -1,1 +1,140 @@
+name: Integration
 
+# Called by CI after build and scan; shares the caller's run and artifacts.
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  integration-test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    # Serialize deployments to this logical target, including across branches.
+    # Reuse this target-scoped group if moving to a shared dev environment.
+    concurrency:
+      group: inventory-api-integration-dev
+      cancel-in-progress: false
+    env:
+      KIND_CLUSTER: inventory-ci-${{ github.run_id }}-${{ github.run_attempt }}
+      KUBE_CONTEXT: kind-inventory-ci-${{ github.run_id }}-${{ github.run_attempt }}
+      APP_NAMESPACE: inventory-integration
+      IMAGE_REF: inventory-api:${{ github.sha }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Isolate integration kubeconfig
+        run: echo "KUBECONFIG=$RUNNER_TEMP/integration-kubeconfig" >> "$GITHUB_ENV"
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: inventory-image-${{ github.sha }}
+          path: ${{ runner.temp }}/image
+      - name: Load and verify the exact scanned image without rebuilding
+        working-directory: ${{ runner.temp }}/image
+        env:
+          IMAGE_REF: inventory-api:${{ github.sha }}
+        run: |
+          sha256sum --check inventory-api.tar.sha256
+          docker load --input inventory-api.tar
+          actual_id=$(docker image inspect "$IMAGE_REF" --format '{{.Id}}')
+          test "$actual_id" = "$(cat image-id.txt)"
+      - name: Exercise container liveness and readiness with runtime hardening
+        env:
+          IMAGE_REF: inventory-api:${{ github.sha }}
+        run: ./scripts/image-integration-test.sh "$IMAGE_REF"
+      - uses: azure/setup-helm@b9e51907a09c216f16ebe8536097933489208112 # v4.3.0
+        with:
+          version: 'v4.3.1'
+      - name: Install kind and kubectl
+        uses: helm/kind-action@92086f6be054225fa813e0a4b13787fc9088faab # v1.13.0
+        with:
+          version: v0.33.0
+          kubectl_version: v1.37.0
+          cluster_name: ${{ env.KIND_CLUSTER }}
+          install_only: true
+      - name: Create isolated temporary kind cluster
+        run: |
+          kind create cluster --name "$KIND_CLUSTER" --kubeconfig "$KUBECONFIG" \
+            --image kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5 \
+            --wait 120s --retain
+      - name: Load verified image into kind without rebuilding
+        run: kind load image-archive "$RUNNER_TEMP/image/inventory-api.tar" --name "$KIND_CLUSTER"
+      - name: Install dev Helm release
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          kubectl --context "$KUBE_CONTEXT" create namespace "$APP_NAMESPACE"
+          helm upgrade --install inventory-api ./helm/inventory-api \
+            --kube-context "$KUBE_CONTEXT" --namespace "$APP_NAMESPACE" \
+            --values ./helm/inventory-api/values-dev.yaml \
+            --set-string image.repository=inventory-api --set-string image.tag="$IMAGE_TAG" \
+            --set image.pullPolicy=Never --set replicaCount=1 --set autoscaling.enabled=false \
+            --wait --timeout 3m
+      - name: Verify rollout, Ready Pods, and Service endpoints
+        run: |
+          kubectl --context "$KUBE_CONTEXT" -n "$APP_NAMESPACE" \
+            rollout status deployment/inventory-api --timeout=180s
+          kubectl --context "$KUBE_CONTEXT" -n "$APP_NAMESPACE" \
+            wait --for=condition=Ready pods -l app.kubernetes.io/instance=inventory-api --timeout=120s
+          helm status inventory-api --kube-context "$KUBE_CONTEXT" -n "$APP_NAMESPACE" -o json \
+            | jq -e '.info.status == "deployed"'
+          kubectl --context "$KUBE_CONTEXT" -n "$APP_NAMESPACE" get deployment inventory-api -o json \
+            | jq -e --arg image "$IMAGE_REF" '.spec.replicas == 1 and .spec.template.spec.containers[0].image == $image and .status.readyReplicas == 1'
+          kubectl --context "$KUBE_CONTEXT" -n "$APP_NAMESPACE" get service inventory-api -o json \
+            | jq -e '.spec.type == "ClusterIP" and any(.spec.ports[]; .port == 80 and .targetPort == "http")'
+          endpoints_ready=false
+          for _ in {1..30}; do
+            if kubectl --context "$KUBE_CONTEXT" -n "$APP_NAMESPACE" get endpointslices \
+              -l kubernetes.io/service-name=inventory-api -o json \
+              | jq -e 'any(.items[]?.endpoints[]?; .conditions.ready == true and (.addresses | length > 0))'; then
+              endpoints_ready=true
+              break
+            fi
+            sleep 1
+          done
+          test "$endpoints_ready" = true
+      - name: Run HTTP smoke tests through the Helm Service
+        run: |
+          mkdir -p "$RUNNER_TEMP/integration-diagnostics"
+          kubectl --context "$KUBE_CONTEXT" -n "$APP_NAMESPACE" \
+            port-forward service/inventory-api 8080:80 --address=127.0.0.1 \
+            > "$RUNNER_TEMP/integration-diagnostics/port-forward.log" 2>&1 &
+          forward_pid=$!
+          trap 'kill "$forward_pid" 2>/dev/null || true' EXIT
+          forwarding_ready=false
+          for _ in {1..30}; do
+            if ! kill -0 "$forward_pid" 2>/dev/null; then
+              cat "$RUNNER_TEMP/integration-diagnostics/port-forward.log"
+              exit 1
+            fi
+            if curl --fail --silent --max-time 2 http://127.0.0.1:8080/health >/dev/null; then
+              forwarding_ready=true
+              break
+            fi
+            sleep 1
+          done
+          test "$forwarding_ready" = true
+          ./scripts/smoke-test.sh http://127.0.0.1:8080 2>&1 \
+            | tee "$RUNNER_TEMP/integration-diagnostics/smoke-test.log"
+      - name: Collect failure diagnostics before cluster cleanup
+        if: failure()
+        env:
+          DIAGNOSTICS_DIR: ${{ runner.temp }}/integration-diagnostics
+        run: ./scripts/collect-diagnostics.sh "$APP_NAMESPACE" inventory-api
+      - name: Preserve failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: integration-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/integration-diagnostics/
+          retention-days: 7
+          if-no-files-found: warn
+      - name: Delete temporary kind cluster
+        if: always()
+        run: kind delete cluster --name "$KIND_CLUSTER"

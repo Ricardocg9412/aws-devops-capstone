@@ -111,3 +111,85 @@ jobs:
             --workdir /work \
             reg.kyverno.io/kyverno/kyverno-cli:v1.19.2 \
             test kyverno/tests
+
+  docker-build:
+    needs: [python-tests, terraform-validate, helm-validate, kyverno-test]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
+      - name: Build SHA-tagged image without publishing
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+        with:
+          context: .
+          file: docker/Dockerfile
+          platforms: linux/amd64
+          tags: inventory-api:${{ github.sha }}
+          push: false
+          outputs: type=docker,dest=${{ runner.temp }}/inventory-api.tar
+          cache-from: type=gha,scope=inventory-api-linux-amd64
+          cache-to: type=gha,mode=max,scope=inventory-api-linux-amd64
+      - name: Record archive checksum and Docker image identity
+        env:
+          IMAGE_REF: inventory-api:${{ github.sha }}
+        run: |
+          cd "$RUNNER_TEMP"
+          sha256sum inventory-api.tar > inventory-api.tar.sha256
+          docker load --input inventory-api.tar
+          docker image inspect "$IMAGE_REF" --format '{{.Id}}' > image-id.txt
+      # This artifact is a test input, not a published or approved release.
+      - name: Preserve the exact built image for downstream jobs
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: inventory-image-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/inventory-api.tar
+            ${{ runner.temp }}/inventory-api.tar.sha256
+            ${{ runner.temp }}/image-id.txt
+          compression-level: 0
+          retention-days: 3
+          if-no-files-found: error
+
+  image-scan:
+    needs: docker-build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: inventory-image-${{ github.sha }}
+          path: ${{ runner.temp }}/image
+      - name: Verify built archive integrity
+        working-directory: ${{ runner.temp }}/image
+        run: sha256sum --check inventory-api.tar.sha256
+      - name: Report HIGH and CRITICAL image vulnerabilities (advisory)
+        uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8 # v0.33.1
+        with:
+          version: v0.76.1
+          scan-type: image
+          input: ${{ runner.temp }}/image/inventory-api.tar
+          scanners: vuln
+          vuln-type: os,library
+          severity: HIGH,CRITICAL
+          ignore-unfixed: false
+          # Findings are advisory; scanner execution errors still fail the job.
+          exit-code: '0'
+          format: json
+          output: ${{ runner.temp }}/trivy-image.json
+          timeout: 10m
+          cache: false
+      - name: Preserve vulnerability report even if scanning fails
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: image-vulnerability-report-${{ github.sha }}
+          path: ${{ runner.temp }}/trivy-image.json
+          retention-days: 14
+          if-no-files-found: warn
+
+  integration-test:
+    needs: [docker-build, image-scan]
+    uses: ./.github/workflows/integration.yaml
