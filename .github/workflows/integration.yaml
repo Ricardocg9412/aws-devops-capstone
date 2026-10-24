@@ -124,22 +124,9 @@ jobs:
             | tee "$RUNNER_TEMP/integration-diagnostics/smoke-test.log"
       - name: Collect failure diagnostics before cluster cleanup
         if: failure()
-        run: |
-          mkdir -p "$RUNNER_TEMP/integration-diagnostics"
-          diagnostics="$RUNNER_TEMP/integration-diagnostics"
-          kubectl --context "$KUBE_CONTEXT" get nodes -o wide > "$diagnostics/nodes.txt" 2>&1 || true
-          kubectl --context "$KUBE_CONTEXT" -n "$APP_NAMESPACE" get all -o wide > "$diagnostics/resources.txt" 2>&1 || true
-          kubectl --context "$KUBE_CONTEXT" -n "$APP_NAMESPACE" describe pods > "$diagnostics/pods.txt" 2>&1 || true
-          kubectl --context "$KUBE_CONTEXT" -n "$APP_NAMESPACE" get events --sort-by=.metadata.creationTimestamp > "$diagnostics/events.txt" 2>&1 || true
-          kubectl --context "$KUBE_CONTEXT" -n "$APP_NAMESPACE" get endpointslices -o yaml > "$diagnostics/endpointslices.yaml" 2>&1 || true
-          kubectl --context "$KUBE_CONTEXT" -n "$APP_NAMESPACE" logs -l app.kubernetes.io/instance=inventory-api \
-            --all-containers=true --prefix=true --tail=200 > "$diagnostics/application.log" 2>&1 || true
-          kubectl --context "$KUBE_CONTEXT" -n "$APP_NAMESPACE" logs -l app.kubernetes.io/instance=inventory-api \
-            --all-containers=true --prefix=true --previous --tail=200 > "$diagnostics/application-previous.log" 2>&1 || true
-          helm status inventory-api --kube-context "$KUBE_CONTEXT" -n "$APP_NAMESPACE" > "$diagnostics/helm-status.txt" 2>&1 || true
-          helm get all inventory-api --kube-context "$KUBE_CONTEXT" -n "$APP_NAMESPACE" > "$diagnostics/helm-release.txt" 2>&1 || true
-          kind export logs "$diagnostics/kind" --name "$KIND_CLUSTER" || true
-          docker ps -a > "$diagnostics/docker-containers.txt" 2>&1 || true
+        env:
+          DIAGNOSTICS_DIR: ${{ runner.temp }}/integration-diagnostics
+        run: ./scripts/collect-diagnostics.sh "$APP_NAMESPACE" inventory-api
       - name: Preserve failure diagnostics
         if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

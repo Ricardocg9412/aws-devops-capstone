@@ -458,11 +458,13 @@ if a later assertion fails and preserves the original nonzero exit status even
 if cleanup fails too. Successful executions delete their test asset normally.
 Do not run it against a multi-replica in-memory instance behind a load balancer.
 
-On failure, CI collects available Pod descriptions, events, current and previous
-application logs, Service endpoints, Helm release details, kind node logs, and
-port-forward/smoke logs. Diagnostics are uploaded for seven days before cleanup.
-Partial startup failures still trigger best-effort collection. The port-forward
-is stopped and the temporary cluster is deleted even after failures.
+On failure, CI runs `scripts/collect-diagnostics.sh` to collect scoped Pod
+descriptions, events, current and previous application logs, Service endpoints,
+rollout status, Helm status/history, HTTP log summaries, and available metrics.
+Port-forward/smoke logs are retained alongside the timestamped collection.
+Diagnostics are uploaded for seven days before cleanup. Partial startup failures
+still trigger best-effort collection. The port-forward is stopped and the
+temporary cluster is deleted even after failures.
 
 Deployment jobs use the target-scoped concurrency group
 `inventory-api-integration-dev` with `cancel-in-progress: false`, preventing
@@ -474,3 +476,93 @@ These checks exercise the real image and Kubernetes readiness/Service selection.
 A Service port-forward does not test ClusterIP packet routing or NetworkPolicy
 enforcement. Standard kind uses kindnet, which does not enforce NetworkPolicy;
 network isolation needs a separate test with an enforcing CNI.
+
+### Operational evidence and request-log analysis
+
+Collect diagnostics for a namespace and Helm release without changing the
+workload:
+
+```sh
+KUBE_CONTEXT=kind-devops-lab ./scripts/collect-diagnostics.sh devops-lab inventory-api
+```
+
+The collector requires Bash and jq, and uses kubectl and Helm for available
+cluster evidence. `KUBE_CONTEXT` is optional; otherwise the current context is
+used. Output is a private directory such as
+`diagnostics/20261024T000000Z-devops-lab-inventory-api.XXXXXX`, with a UTC timestamp
+and a unique suffix. Set `DIAGNOSTICS_DIR` to change the parent directory. Local
+`diagnostics/` output is ignored by Git.
+
+| Signal | Evidence |
+| --- | --- |
+| Pod readiness and restarts | `pod-readiness-restarts.json`, `pod-descriptions.txt`, `pods.json` |
+| Image, exit codes, previous container state, probes and resource requests/limits | Selected Pod fields and `deployments.json` |
+| Scheduling or startup errors | Namespace `events.json`, per-Deployment `rollout-*.txt`, assigned-node conditions/capacity in `node-*.json` |
+| CPU/memory usage | `metrics-pods.txt` per container and `metrics-node-*.txt` when metrics-server is available |
+| Application errors and latency | `logs-*.log`, including the last previous instance for restarted containers, and `http-summary.json` |
+| Release outcome and revisions | `helm-status.json`, `helm-history.json` (up to ten revisions) |
+| Traffic eligibility | `services.json`, `endpoints-*.json` |
+
+Each collection command has an exit code in `collection-status.tsv` and a
+corresponding `.stderr` file. Missing metrics-server, unavailable previous logs,
+failed rollouts, permission errors, or a partially created cluster do not stop
+other collection commands. Kubernetes requests have a ten-second timeout and
+rollout checks take a snapshot without waiting for recovery. The collector
+returns success after best-effort collection; this does not declare the workload
+healthy or override the original CI failure. Invalid arguments, a missing jq,
+or an unwritable output directory still return nonzero.
+
+Interpret common failure patterns:
+
+- **Image pull:** waiting reasons such as `ErrImagePull`, `ImagePullBackOff`, or
+  `ErrImageNeverPull`, plus image-related events. Application logs may be absent.
+- **Application crash:** restarts, `CrashLoopBackOff`, last termination reason
+  and exit code, and the previous container's log stream.
+- **Readiness failure:** a running container with Ready false, probe settings,
+  `Unhealthy` events, and no ready Service endpoint. HTTP 503 logs can corroborate
+  readiness failures when the application receives the probe.
+- **Scheduling failure:** Pending Pod, no assigned node, `PodScheduled=False`,
+  and `FailedScheduling`/`Unschedulable` messages such as insufficient CPU.
+
+Metrics Server supplies the `metrics.k8s.io` API used by `kubectl top`; basic kind
+integration does not install it. Missing live usage is recorded as unavailable,
+not zero. Requests/limits and scheduling/node conditions remain available without
+metrics-server. Instantaneous usage alone is not proof of historical pressure.
+
+Analyze application logs independently with:
+
+```sh
+./scripts/log-analyzer.sh diagnostics/<collection>/logs-*.log
+# Or stream newline-delimited JSON:
+kubectl -n devops-lab logs deployment/inventory-api | ./scripts/log-analyzer.sh -
+```
+
+The analyzer reads actual `request_completed` JSON entries and uses `status_code`
+and `duration_ms`. It reports total requests, HTTP 4xx/5xx counts, the most frequent
+method/path and its count, and average duration in milliseconds. Equal-frequency
+endpoints use lexical order to make the result deterministic. Non-request or
+malformed lines are counted as ignored. Missing/invalid durations do not affect
+request counts; `duration_samples` states the average's denominator. No requests
+or duration samples produce null endpoint/average values rather than misleading
+zeros. Endpoint paths are literal paths, so individual item IDs remain distinct.
+
+Collection captures up to 1,000 recent lines per container/stream, including
+probes. Counts and averages describe only those captured logs, not lifetime
+traffic. Only the immediately previous container instance is available through
+`--previous`. Consult collection exit codes before interpreting an empty summary.
+
+The collector never requests Kubernetes Secrets, reads Helm values/manifests,
+prints kubeconfigs, dumps environments, or exports unrestricted kind cluster
+state. Pod descriptions are rendered from allowlisted JSON fields rather than
+raw `kubectl describe`, which can reveal literal environment values. Helm output
+is similarly projected before being written. Common structured credential fields,
+Authorization tokens, AWS access-key IDs, and credentials in URLs are redacted
+from application logs while preserving request-log fields and startup errors.
+Applications must still avoid emitting secrets in arbitrary free text; pattern
+redaction cannot recognize every possible secret. Only upload reviewed diagnostic
+artifacts to systems with the appropriate access controls.
+
+The local pytest suite tests image-pull, crash, readiness, and scheduling evidence,
+collection with unavailable metrics/cluster access, credential-field omission,
+and request-log aggregation without requiring Kubernetes or AWS. Script tests
+require jq; they are skipped when jq is absent.
